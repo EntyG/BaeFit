@@ -187,6 +187,7 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
         setDebugInfo('Creating PIXI app...');
 
         // PIXI Application initialization (constructor with options)
+        // Disable event system to prevent PixiJS v7 interaction errors with pixi-live2d-display
         app = new PIXI.Application({
           backgroundAlpha: 0,
           antialias: true,
@@ -195,6 +196,12 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
           width: 800,
           height: 600,
         });
+        
+        // Disable events on the renderer to prevent interaction errors
+        if (app.renderer && app.renderer.events) {
+          // Disable the event system entirely
+          app.renderer.events.autoPreventDefault = false;
+        }
 
         if (!mounted) {
           app.destroy(true, { children: true });
@@ -206,6 +213,8 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
         if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
           throw new Error('PIXI Application view is not a canvas element');
         }
+        // Disable pointer events on canvas to prevent interaction system from processing them
+        canvas.style.pointerEvents = 'none';
         containerRef.current.appendChild(canvas);
         appRef.current = app;
         
@@ -232,9 +241,27 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
         model.y = app.screen.height / 2 + 50;
         // Disable pointer interaction to avoid Pixi v7 interaction manager issues
         // with pixi-live2d-display; we focus on autonomous motions for now.
-        model.buttonMode = false;
+        model.eventMode = 'none'; // Explicitly disable events
+        if (model.buttonMode !== undefined) {
+          model.buttonMode = false;
+        }
 
+        // Disable events on stage as well
+        app.stage.eventMode = 'none';
         app.stage.addChild(model);
+        
+        // Recursively disable events on all children to prevent isInteractive errors
+        const disableEvents = (obj) => {
+          if (obj && typeof obj === 'object') {
+            if (obj.eventMode !== undefined) {
+              obj.eventMode = 'none';
+            }
+            if (obj.children && Array.isArray(obj.children)) {
+              obj.children.forEach(child => disableEvents(child));
+            }
+          }
+        };
+        disableEvents(model);
 
         // Play idle motion
         try {

@@ -28,6 +28,50 @@ if (Live2DModel.prototype) {
   Live2DModel.prototype.unregisterInteraction = noop;
 }
 
+// Patch EventBoundary to handle missing isInteractive method
+// This fixes the "isInteractive is not a function" error in PixiJS v7
+// The issue occurs when pixi-live2d-display creates objects that don't properly extend PixiJS v7 display objects
+if (typeof window !== 'undefined') {
+  // Try to patch EventBoundary if it exists
+  const EventBoundary = PIXI.EventBoundary || (PIXI.events && PIXI.events.EventBoundary);
+  if (EventBoundary && EventBoundary.prototype) {
+    const originalHitTestMoveRecursive = EventBoundary.prototype.hitTestMoveRecursive;
+    if (originalHitTestMoveRecursive) {
+      EventBoundary.prototype.hitTestMoveRecursive = function(currentTarget, location, testFn, result) {
+        // Safety check: ensure currentTarget has isInteractive method
+        if (currentTarget) {
+          if (typeof currentTarget.isInteractive !== 'function') {
+            // Add a safe fallback for objects missing isInteractive
+            try {
+              Object.defineProperty(currentTarget, 'isInteractive', {
+                get: function() {
+                  // Return false for non-interactive objects
+                  return this.eventMode !== undefined && this.eventMode !== 'none';
+                },
+                configurable: true,
+                enumerable: false
+              });
+            } catch (e) {
+              // If we can't define the property, return early to avoid the error
+              return result;
+            }
+          }
+          // Call original method with safe currentTarget
+          try {
+            return originalHitTestMoveRecursive.call(this, currentTarget, location, testFn, result);
+          } catch (e) {
+            // If the original method fails, return the result to prevent crash
+            console.warn('EventBoundary.hitTestMoveRecursive error:', e);
+            return result;
+          }
+        }
+        return result;
+      };
+      console.log('✅ Patched EventBoundary.hitTestMoveRecursive for PixiJS v7 compatibility');
+    }
+  }
+}
+
 // Log configuration status
 console.log('✅ Live2DModel initialized with PIXI Ticker');
 console.log('📦 Waiting for Live2DCubismCore...');

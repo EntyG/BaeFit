@@ -52,11 +52,11 @@ Open: http://localhost:5173
 
 ## Features
 
-- 🎀 **Live2D Avatar** - Animated Yuki character
+- 🎀 **Live2D Avatar** - Animated Megumin character
 - 🎤 **Voice Chat** - Hold microphone button to record
 - 💬 **Text Chat** - Type messages
 - 🌙 **Day/Night Mode** - Toggle theme
-- 😊 **Dynamic Expressions** - Yuki reacts with different moods
+- 😊 **Dynamic Expressions** - Megumin reacts with different moods
 
 ## Development
 

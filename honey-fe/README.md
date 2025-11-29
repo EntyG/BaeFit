@@ -1,15 +1,15 @@
-# 🍯 BaeFit Frontend - Chat with Yuki
+# 🍯 BaeFit Frontend - Chat with Megumin
 
-A beautiful anime-style virtual assistant interface featuring **Yuki**, a Live2D character who motivates healthy eating habits.
+A beautiful anime-style virtual assistant interface featuring **Megumin**, a Live2D character who motivates healthy eating habits.
 
 ## ✨ Features
 
-- 🎀 **Live2D Avatar** - Animated Yuki character with mood-based expressions
+- 🎀 **Live2D Avatar** - Animated Megumin character with mood-based expressions
 - 🎤 **Voice Chat** - Hold to record, release to send
 - 💬 **Text Chat** - Type messages to chat
 - 🌙 **Day/Night Mode** - Beautiful ambient themes
-- 🎭 **Dynamic Moods** - Yuki expresses: happy, excited, concerned, pouty, etc.
-- 🔊 **Text-to-Speech** - Yuki speaks with anime voice (Typecast.ai)
+- 🎭 **Dynamic Moods** - Megumin expresses: happy, excited, concerned, pouty, etc.
+- 🔊 **Text-to-Speech** - Megumin speaks with anime voice (Typecast.ai)
 
 ## 🚀 Quick Start
 
@@ -118,7 +118,7 @@ honey-fe/
 1. **Click & Hold** the microphone button
 2. **Speak** your message
 3. **Release** to send
-4. Wait for Yuki's response with voice!
+4. Wait for Megumin's response with voice!
 
 ## 📝 License
 

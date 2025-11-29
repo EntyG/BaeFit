@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 
 const MOOD_CONFIG = {
+  // Primary emotions
   happy: {
     emoji: '😊',
     color: 'from-yellow-400 to-orange-400',
@@ -51,6 +52,48 @@ const MOOD_CONFIG = {
     color: 'from-rose-400 to-pink-400',
     label: 'Neutral',
   },
+  
+  // Additional emotions
+  sleep: {
+    emoji: '😴',
+    color: 'from-indigo-400 to-purple-400',
+    label: 'Sleepy',
+  },
+  sleepy: {
+    emoji: '😴',
+    color: 'from-indigo-400 to-purple-400',
+    label: 'Sleepy',
+  },
+  shy: {
+    emoji: '😳',
+    color: 'from-pink-400 to-red-400',
+    label: 'Shy',
+  },
+  embarrassed: {
+    emoji: '😳',
+    color: 'from-pink-400 to-red-400',
+    label: 'Embarrassed',
+  },
+  blush: {
+    emoji: '☺️',
+    color: 'from-rose-400 to-pink-500',
+    label: 'Blushing',
+  },
+  idle: {
+    emoji: '😌',
+    color: 'from-gray-400 to-slate-400',
+    label: 'Idle',
+  },
+  fun: {
+    emoji: '😄',
+    color: 'from-yellow-400 to-amber-400',
+    label: 'Having Fun',
+  },
+  normal: {
+    emoji: '🙂',
+    color: 'from-blue-300 to-cyan-300',
+    label: 'Normal',
+  },
 };
 
 const MoodIndicator = ({ mood = 'neutral', isSpeaking = false }) => {
@@ -60,38 +103,36 @@ const MoodIndicator = ({ mood = 'neutral', isSpeaking = false }) => {
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="absolute top-4 left-4 z-10"
+      className="mood-indicator"
     >
-      <div className={`flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r ${config.color} bg-opacity-20 backdrop-blur-sm border border-white/20`}>
-        <motion.span
-          animate={isSpeaking ? { scale: [1, 1.2, 1] } : {}}
-          transition={{ repeat: Infinity, duration: 0.5 }}
-          className="text-xl"
-        >
-          {config.emoji}
-        </motion.span>
-        <span className="text-white font-medium text-sm">{config.label}</span>
-        
-        {isSpeaking && (
-          <div className="flex items-center gap-1 ml-2">
-            <motion.div
-              animate={{ scaleY: [1, 1.5, 1] }}
-              transition={{ repeat: Infinity, duration: 0.3, delay: 0 }}
-              className="w-1 h-3 bg-white rounded-full"
-            />
-            <motion.div
-              animate={{ scaleY: [1, 2, 1] }}
-              transition={{ repeat: Infinity, duration: 0.3, delay: 0.1 }}
-              className="w-1 h-3 bg-white rounded-full"
-            />
-            <motion.div
-              animate={{ scaleY: [1, 1.5, 1] }}
-              transition={{ repeat: Infinity, duration: 0.3, delay: 0.2 }}
-              className="w-1 h-3 bg-white rounded-full"
-            />
-          </div>
-        )}
-      </div>
+      <motion.span
+        animate={isSpeaking ? { scale: [1, 1.2, 1] } : { y: [0, -3, 0] }}
+        transition={{ repeat: Infinity, duration: isSpeaking ? 0.5 : 2 }}
+        className="mood-emoji"
+      >
+        {config.emoji}
+      </motion.span>
+      <span className="mood-text">{config.label}</span>
+      
+      {isSpeaking && (
+        <div className="speaking-indicator">
+          <motion.div
+            animate={{ scaleY: [1, 1.8, 1] }}
+            transition={{ repeat: Infinity, duration: 0.4, delay: 0 }}
+            className="speaking-dot"
+          />
+          <motion.div
+            animate={{ scaleY: [1, 2.2, 1] }}
+            transition={{ repeat: Infinity, duration: 0.4, delay: 0.1 }}
+            className="speaking-dot"
+          />
+          <motion.div
+            animate={{ scaleY: [1, 1.8, 1] }}
+            transition={{ repeat: Infinity, duration: 0.4, delay: 0.2 }}
+            className="speaking-dot"
+          />
+        </div>
+      )}
     </motion.div>
   );
 };

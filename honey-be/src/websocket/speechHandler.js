@@ -5,7 +5,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Handle WebSocket connection for real-time Yuki chat
+ * Handle WebSocket connection for real-time Megumin chat
  * @param {WebSocket} ws - WebSocket connection
  */
 export function handleWebSocketConnection(ws) {
@@ -13,7 +13,7 @@ export function handleWebSocketConnection(ws) {
   let isRecording = false;
   let sessionId = uuidv4();
 
-  console.log(`🎀 Yuki session started: ${sessionId}`);
+  console.log(`🎀 Megumin session started: ${sessionId}`);
 
   ws.on('message', async (message) => {
     try {
@@ -67,7 +67,7 @@ export function handleWebSocketConnection(ws) {
           break;
 
         case 'meal_reaction':
-          // Yuki reacts to a meal
+          // Megumin reacts to a meal
           await handleMealReaction(ws, data, sessionId);
           break;
 
@@ -99,7 +99,7 @@ export function handleWebSocketConnection(ws) {
   });
 
   ws.on('close', () => {
-    console.log(`🎀 Yuki session closed: ${sessionId}`);
+    console.log(`🎀 Megumin session closed: ${sessionId}`);
     audioChunks = [];
   });
 
@@ -107,13 +107,13 @@ export function handleWebSocketConnection(ws) {
     console.error(`❌ WebSocket error (${sessionId}):`, error);
   });
 
-  // Send welcome message from Yuki
+  // Send welcome message from Megumin
   ws.send(JSON.stringify({
     type: 'connected',
     sessionId,
-    message: 'Yuki is ready to chat!',
+    message: 'Megumin is ready to chat!',
     character: {
-      name: 'Yuki',
+      name: 'Megumin',
       description: 'Your anime virtual assistant for healthy eating',
       defaultMood: 'happy'
     },
@@ -131,7 +131,7 @@ function handleStartRecording(ws, data, callback) {
     type: 'recording_started',
     timestamp: Date.now(),
     language: data.language || 'en',
-    message: 'Yuki is listening...'
+    message: 'Megumin is listening...'
   }));
 
   callback();
@@ -181,13 +181,13 @@ async function handleStopRecording(ws, audioChunks, data, sessionId) {
     }));
 
     // ═══════════════════════════════════════
-    // STEP 2: Generate Yuki's Response
+    // STEP 2: Generate Megumin's Response
     // ═══════════════════════════════════════
     ws.send(JSON.stringify({
       type: 'processing',
       stage: 'thinking',
       progress: 50,
-      message: 'Yuki is thinking...'
+      message: 'Megumin is thinking...'
     }));
 
     const llmResult = await groqService.generateCharacterResponse(
@@ -203,13 +203,13 @@ async function handleStopRecording(ws, audioChunks, data, sessionId) {
     }));
 
     // ═══════════════════════════════════════
-    // STEP 3: Generate Yuki's Voice
+    // STEP 3: Generate Megumin's Voice
     // ═══════════════════════════════════════
     ws.send(JSON.stringify({
       type: 'processing',
       stage: 'tts',
       progress: 75,
-      message: 'Yuki is preparing to speak...'
+      message: 'Megumin is preparing to speak...'
     }));
 
     const typecastEmotion = mapMoodToEmotion(llmResult.mood);
@@ -273,7 +273,7 @@ async function handleTextChat(ws, data, sessionId) {
     ws.send(JSON.stringify({
       type: 'processing',
       stage: 'thinking',
-      message: 'Yuki is thinking...'
+      message: 'Megumin is thinking...'
     }));
 
     // Generate response
@@ -286,7 +286,7 @@ async function handleTextChat(ws, data, sessionId) {
     ws.send(JSON.stringify({
       type: 'processing',
       stage: 'tts',
-      message: 'Yuki is preparing to speak...'
+      message: 'Megumin is preparing to speak...'
     }));
 
     // Generate voice
@@ -365,7 +365,7 @@ async function handleFullChat(ws, data, sessionId) {
       type: 'processing',
       stage: 'thinking',
       progress: 45,
-      message: 'Yuki is thinking...'
+      message: 'Megumin is thinking...'
     }));
 
     const llmResult = await groqService.generateCharacterResponse(
@@ -494,7 +494,7 @@ async function handleMealReaction(ws, data, sessionId) {
     ws.send(JSON.stringify({
       type: 'processing',
       stage: 'thinking',
-      message: 'Yuki is looking at your meal...'
+      message: 'Megumin is looking at your meal...'
     }));
 
     // Generate reaction
@@ -507,7 +507,7 @@ async function handleMealReaction(ws, data, sessionId) {
     ws.send(JSON.stringify({
       type: 'processing',
       stage: 'tts',
-      message: 'Yuki is preparing her reaction...'
+      message: 'Megumin is preparing her reaction...'
     }));
 
     // Generate voice

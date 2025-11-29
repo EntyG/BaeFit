@@ -117,5 +117,5 @@ Should return:
 
 1. Start frontend: `cd ../honey-fe && npm run dev`
 2. Open http://localhost:5173
-3. Chat with Yuki! 🎀
+3. Chat with Megumin! 🎀
 

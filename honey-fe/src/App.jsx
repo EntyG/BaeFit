@@ -1,10 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Sparkles, Heart, Moon, Sun } from 'lucide-react';
+import { Settings, Moon, Sun, Volume2, VolumeX } from 'lucide-react';
 import Live2DCanvas from './components/Live2DCanvas';
 import ChatInterface from './components/ChatInterface';
+import FoodPanel from './components/FoodPanel';
 import MoodIndicator from './components/MoodIndicator';
-import { healthCheck } from './services/api';
+import { healthCheck, chatWithText } from './services/api';
 import './App.css';
 
 function App() {
@@ -12,12 +13,15 @@ function App() {
   const [currentMood, setCurrentMood] = useState('neutral');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isNightMode, setIsNightMode] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [backendStatus, setBackendStatus] = useState('checking');
   const [sessionId] = useState(() => `session_${Date.now()}`);
+  const [dailyGoal] = useState(2000);
   
   const live2dRef = useRef(null);
   const audioRef = useRef(null);
+  const chatRef = useRef(null);
 
   // Check backend status
   useEffect(() => {
@@ -35,7 +39,7 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Handle Yuki's response
+  // Handle Yuki's response (from chat or food reactions)
   const handleYukiResponse = useCallback((response) => {
     const { yukiResponse, audio, avatar } = response;
 
@@ -46,14 +50,14 @@ function App() {
     }
 
     // Play audio with lip sync
-    if (audio?.url) {
+    if (audio?.url && !isMuted) {
       // Stop any current audio
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
 
-      // Construct full audio URL (backend returns relative path like /audio/xxx.mp3)
+      // Construct full audio URL
       const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
       const audioUrl = audio.url.startsWith('http') ? audio.url : `${API_BASE}${audio.url}`;
       const newAudio = new Audio(audioUrl);
@@ -72,7 +76,6 @@ function App() {
         setIsSpeaking(false);
         live2dRef.current?.stopLipSync?.();
         live2dRef.current?.stopSpeaking?.();
-        // Return to idle after speaking
         setTimeout(() => {
           live2dRef.current?.playMotion('idle');
         }, 500);
@@ -86,7 +89,39 @@ function App() {
 
       newAudio.play().catch(console.error);
     }
-  }, []);
+  }, [isMuted]);
+
+  // Handle food logging - Yuki reacts to food choices
+  const handleFoodLog = useCallback(async (food) => {
+    try {
+      const message = food.healthy
+        ? `I just added ${food.name} to my meal! What do you think?`
+        : `I'm eating ${food.name}... please don't be too harsh!`;
+      
+      const response = await chatWithText(message, {
+        sessionId,
+        context: `User logged food: ${food.name} (${food.calories} kcal). Health rating: ${food.healthy ? 'healthy' : 'unhealthy'}`
+      });
+
+      if (response.success) {
+        handleYukiResponse(response.data);
+      }
+    } catch (error) {
+      console.error('Error getting Yuki reaction:', error);
+    }
+  }, [sessionId, handleYukiResponse]);
+
+  // Handle asking Yuki about food
+  const handleAskYuki = useCallback(async (question) => {
+    try {
+      const response = await chatWithText(question, { sessionId });
+      if (response.success) {
+        handleYukiResponse(response.data);
+      }
+    } catch (error) {
+      console.error('Error asking Yuki:', error);
+    }
+  }, [sessionId, handleYukiResponse]);
 
   // Handle model ready
   const handleModelReady = useCallback(() => {
@@ -94,211 +129,140 @@ function App() {
   }, []);
 
   return (
-    <div className={`min-h-screen ${isNightMode ? 'bg-night' : 'bg-day'} transition-all duration-1000`}>
-      {/* Animated background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {/* Stars (night mode) */}
-        {isNightMode && (
-          <div className="stars-container">
-            {[...Array(50)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="star"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0.2, 1, 0.2] }}
-                transition={{
-                  duration: 2 + Math.random() * 2,
-                  repeat: Infinity,
-                  delay: Math.random() * 2,
-                }}
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 60}%`,
-                }}
-              />
-            ))}
-          </div>
-        )}
+    <div className="app-container">
+      {/* Kitchen Background Image */}
+      <div className="kitchen-background" />
 
-        {/* Floating particles */}
-        <div className="particles-container">
-          {[...Array(20)].map((_, i) => (
+      {/* Header */}
+      <header className="app-header">
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="logo-section"
+        >
+          <span className="logo-icon">🍯</span>
+          <div className="logo-text">
+            <h1>BaeFit</h1>
+            <p>Your AI Nutrition Companion</p>
+          </div>
+        </motion.div>
+
+        <div className="header-controls">
+          {/* Backend Status */}
+          <div className={`status-badge ${backendStatus === 'connected' ? 'online' : 'offline'}`}>
+            <span className="status-dot" />
+            {backendStatus === 'connected' ? 'Online' : 'Offline'}
+          </div>
+
+          {/* Mute Toggle */}
+          <button
+            onClick={() => setIsMuted(!isMuted)}
+            className="icon-btn"
+            title={isMuted ? 'Unmute' : 'Mute'}
+          >
+            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          </button>
+
+          {/* Day/Night Toggle */}
+          <button
+            onClick={() => setIsNightMode(!isNightMode)}
+            className="icon-btn"
+            title={isNightMode ? 'Day Mode' : 'Night Mode'}
+          >
+            {isNightMode ? <Moon size={20} /> : <Sun size={20} />}
+          </button>
+
+          {/* Settings */}
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="icon-btn"
+            title="Settings"
+          >
+            <Settings size={20} />
+          </button>
+        </div>
+      </header>
+
+      {/* Main 3-Column Layout */}
+      <main className="main-layout">
+        {/* Left Panel - Food Tracking */}
+        <motion.div
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+          className="panel"
+        >
+          <FoodPanel
+            onFoodLog={handleFoodLog}
+            onAskYuki={handleAskYuki}
+            dailyGoal={dailyGoal}
+          />
+        </motion.div>
+
+        {/* Center - Avatar Area */}
+        <div className="avatar-area">
+          {/* Mood Indicator */}
+          <AnimatePresence>
+            {isModelReady && (
+              <MoodIndicator mood={currentMood} isSpeaking={isSpeaking} />
+            )}
+          </AnimatePresence>
+
+          {/* Loading State */}
+          {!isModelReady && (
             <motion.div
-              key={i}
-              className={`particle ${isNightMode ? 'particle-night' : 'particle-day'}`}
-              animate={{
-                y: [0, -100, 0],
-                x: [0, Math.sin(i) * 30, 0],
-                opacity: [0, 0.6, 0],
-              }}
-              transition={{
-                duration: 10 + Math.random() * 5,
-                repeat: Infinity,
-                delay: Math.random() * 5,
-              }}
-              style={{
-                left: `${Math.random() * 100}%`,
-                bottom: `-20px`,
-              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 flex flex-col items-center justify-center z-10"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                className="text-6xl mb-4"
+              >
+                🎀
+              </motion.div>
+              <p className="text-rose-300 animate-pulse text-lg font-medium drop-shadow-lg">Loading Yuki...</p>
+            </motion.div>
+          )}
+
+          {/* Live2D Canvas - Full area */}
+          <div className="absolute inset-0">
+            <Live2DCanvas
+              ref={live2dRef}
+              mood={currentMood}
+              isSpeaking={isSpeaking}
+              onReady={handleModelReady}
             />
-          ))}
+          </div>
+
+          {/* Avatar Stage Glow */}
+          <div className="avatar-stage" />
         </div>
 
-        {/* Gradient overlay */}
-        <div className={`absolute inset-0 ${
-          isNightMode 
-            ? 'bg-gradient-to-t from-purple-950/90 via-transparent to-indigo-950/50' 
-            : 'bg-gradient-to-t from-rose-200/50 via-transparent to-sky-200/30'
-        }`} />
-      </div>
+        {/* Right Panel - Chat */}
+        <motion.div
+          initial={{ opacity: 0, x: 30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.2 }}
+          className="panel"
+        >
+          <ChatInterface
+            ref={chatRef}
+            onYukiResponse={handleYukiResponse}
+            sessionId={sessionId}
+          />
+        </motion.div>
+      </main>
 
-      {/* Living room frame */}
-      <div className="living-room-frame">
-        <div className={`window-frame ${isNightMode ? 'window-night' : 'window-day'}`} />
-      </div>
-
-      {/* Main content */}
-      <div className="relative z-10 min-h-screen flex flex-col">
-        {/* Header */}
-        <header className="flex items-center justify-between px-6 py-4">
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-3"
-          >
-            <span className="text-3xl">🍯</span>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-rose-300 to-pink-400 bg-clip-text text-transparent">
-                BaeFit
-              </h1>
-              <p className="text-xs text-rose-300/70">Your healthy eating companion</p>
-            </div>
-          </motion.div>
-
-          <div className="flex items-center gap-3">
-            {/* Backend status */}
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs ${
-              backendStatus === 'connected' 
-                ? 'bg-green-500/20 text-green-400' 
-                : backendStatus === 'checking'
-                ? 'bg-yellow-500/20 text-yellow-400'
-                : 'bg-red-500/20 text-red-400'
-            }`}>
-              <span className={`w-2 h-2 rounded-full ${
-                backendStatus === 'connected' ? 'bg-green-400' : 
-                backendStatus === 'checking' ? 'bg-yellow-400 animate-pulse' : 'bg-red-400'
-              }`} />
-              {backendStatus === 'connected' ? 'Online' : backendStatus === 'checking' ? 'Connecting...' : 'Offline'}
-            </div>
-
-            {/* Day/Night toggle */}
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setIsNightMode(!isNightMode)}
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-            >
-              {isNightMode ? <Moon className="text-yellow-300" size={20} /> : <Sun className="text-orange-400" size={20} />}
-            </motion.button>
-
-            {/* Settings */}
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setShowSettings(!showSettings)}
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-            >
-              <Settings className="text-rose-300" size={20} />
-            </motion.button>
-          </div>
-        </header>
-
-        {/* Main area */}
-        <main className="flex-1 flex items-stretch px-6 pb-6 gap-6">
-          {/* Live2D Avatar Section */}
-          <div className="flex-1 relative">
-            {/* Mood indicator */}
-            <AnimatePresence>
-              {isModelReady && (
-                <MoodIndicator mood={currentMood} isSpeaking={isSpeaking} />
-              )}
-            </AnimatePresence>
-
-            {/* Avatar container with cozy frame */}
-            <div className="h-full relative">
-              <div className="absolute inset-0 bg-gradient-to-b from-rose-500/5 to-purple-500/10 rounded-3xl backdrop-blur-sm border border-rose-500/20" />
-              
-              {/* Loading state */}
-              {!isModelReady && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                    className="text-5xl mb-4"
-                  >
-                    🎀
-                  </motion.div>
-                  <p className="text-rose-300 animate-pulse">Loading Yuki...</p>
-                </div>
-              )}
-
-              {/* Live2D Canvas */}
-              <div className="absolute inset-0">
-                <Live2DCanvas
-                  ref={live2dRef}
-                  mood={currentMood}
-                  isSpeaking={isSpeaking}
-                  onReady={handleModelReady}
-                />
-              </div>
-
-              {/* Decorative elements */}
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 3, repeat: Infinity }}
-                className="absolute bottom-4 right-4"
-              >
-                <Heart className="text-rose-400/50" size={24} />
-              </motion.div>
-
-              <motion.div
-                animate={{ rotate: [0, 15, -15, 0], scale: [1, 1.1, 1] }}
-                transition={{ duration: 4, repeat: Infinity }}
-                className="absolute top-16 right-4"
-              >
-                <Sparkles className="text-yellow-400/50" size={20} />
-              </motion.div>
-            </div>
-          </div>
-
-          {/* Chat Section */}
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-            className="w-[400px] flex-shrink-0"
-          >
-            <ChatInterface
-              onYukiResponse={handleYukiResponse}
-              sessionId={sessionId}
-            />
-          </motion.div>
-        </main>
-
-        {/* Footer hint */}
-        <footer className="text-center py-3 text-rose-300/50 text-xs">
-          <p>Hold the 🎤 button to talk, or type a message</p>
-        </footer>
-      </div>
-
-      {/* Settings panel */}
+      {/* Settings Modal */}
       <AnimatePresence>
         {showSettings && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
             onClick={() => setShowSettings(false)}
           >
             <motion.div
@@ -306,31 +270,72 @@ function App() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-gradient-to-br from-rose-950 to-purple-950 p-6 rounded-2xl border border-rose-500/30 w-96"
+              className="bg-gradient-to-br from-gray-900 to-gray-800 p-6 rounded-2xl border border-white/10 w-96 shadow-2xl"
             >
-              <h2 className="text-xl font-bold text-rose-200 mb-4">Settings</h2>
+              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <Settings size={24} />
+                Settings
+              </h2>
               
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-rose-300">Night Mode</span>
+                {/* Night Mode Toggle */}
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                  <span className="text-gray-300 flex items-center gap-2">
+                    {isNightMode ? <Moon size={18} /> : <Sun size={18} />}
+                    Night Mode
+                  </span>
                   <button
                     onClick={() => setIsNightMode(!isNightMode)}
-                    className={`w-12 h-6 rounded-full transition-colors ${
-                      isNightMode ? 'bg-violet-600' : 'bg-rose-300'
+                    className={`w-12 h-6 rounded-full transition-colors relative ${
+                      isNightMode ? 'bg-violet-600' : 'bg-gray-600'
                     }`}
                   >
                     <motion.div
                       animate={{ x: isNightMode ? 24 : 2 }}
-                      className="w-5 h-5 bg-white rounded-full shadow"
+                      className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow"
                     />
                   </button>
                 </div>
 
-                <div className="pt-4 border-t border-rose-500/20">
-                  <p className="text-rose-400/70 text-sm">
-                    Backend: {backendStatus === 'connected' ? '✅ Connected' : '❌ Disconnected'}
+                {/* Sound Toggle */}
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                  <span className="text-gray-300 flex items-center gap-2">
+                    {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                    Sound
+                  </span>
+                  <button
+                    onClick={() => setIsMuted(!isMuted)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${
+                      !isMuted ? 'bg-emerald-600' : 'bg-gray-600'
+                    }`}
+                  >
+                    <motion.div
+                      animate={{ x: !isMuted ? 24 : 2 }}
+                      className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow"
+                    />
+                  </button>
+                </div>
+
+                {/* Daily Calorie Goal */}
+                <div className="p-3 bg-white/5 rounded-xl">
+                  <span className="text-gray-300 text-sm">Daily Calorie Goal</span>
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="number"
+                      defaultValue={dailyGoal}
+                      className="flex-1 px-3 py-2 bg-black/30 border border-white/10 rounded-lg text-white"
+                    />
+                    <span className="text-gray-400 text-sm">kcal</span>
+                  </div>
+                </div>
+
+                {/* Status Info */}
+                <div className="pt-4 border-t border-white/10 space-y-2">
+                  <p className="text-gray-400 text-sm flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${backendStatus === 'connected' ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                    Backend: {backendStatus === 'connected' ? 'Connected' : 'Disconnected'}
                   </p>
-                  <p className="text-rose-400/70 text-sm mt-1">
+                  <p className="text-gray-500 text-xs">
                     Session: {sessionId.slice(0, 20)}...
                   </p>
                 </div>
@@ -338,7 +343,7 @@ function App() {
 
               <button
                 onClick={() => setShowSettings(false)}
-                className="mt-6 w-full py-2 bg-rose-500/30 hover:bg-rose-500/50 text-rose-200 rounded-lg transition-colors"
+                className="mt-6 w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors font-medium"
               >
                 Close
               </button>

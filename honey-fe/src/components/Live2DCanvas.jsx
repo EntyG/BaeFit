@@ -37,9 +37,23 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
   const lipSyncDataRef = useRef(null);
   const lipSyncStartTimeRef = useRef(0);
   const lipSyncRafRef = useRef(null);
+  const eyeTrackingRafRef = useRef(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [debugInfo, setDebugInfo] = useState('Initializing...');
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+
+  // Smooth tracking state
+  const targetEyePosRef = useRef({ x: 0, y: 0 });
+  const currentEyePosRef = useRef({ x: 0, y: 0 });
+  const targetHeadPosRef = useRef({ x: 0, y: 0 });
+  const currentHeadPosRef = useRef({ x: 0, y: 0 });
+  const targetBodyPosRef = useRef({ x: 0, y: 0 });
+  const currentBodyPosRef = useRef({ x: 0, y: 0 });
+  const targetClothPosRef = useRef({ x: 0, y: 0 });
+  const currentClothPosRef = useRef({ x: 0, y: 0 });
+  const trackingRafRef = useRef(null);
+  const idleAnimationRafRef = useRef(null);
 
   const applyMouthOpen = useCallback((value) => {
     try {
@@ -60,6 +74,439 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
       }
     } catch (e) {
       console.warn('Mouth animation error:', e);
+    }
+  }, []);
+
+  const updateTrackingTargets = useCallback((cursorX, cursorY) => {
+    try {
+      // Get canvas bounds for relative positioning
+      const canvas = appRef.current?.view;
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      // Calculate relative position (-1 to 1 range)
+      const relativeX = Math.max(-1, Math.min(1, (cursorX - centerX) / (rect.width / 2)));
+      const relativeY = Math.max(-1, Math.min(1, (cursorY - centerY) / (rect.height / 2)));
+
+      // Set target positions for smooth interpolation
+      targetEyePosRef.current = {
+        x: relativeX * 0.8, // Increased eye intensity for stronger gaze
+        y: -relativeY * 0.5  // Increased intensity and invert Y
+      };
+
+      targetHeadPosRef.current = {
+        x: relativeX * 25, // Increased head rotation for more dramatic movement
+        y: -relativeY * 18  // Increased head rotation, inverted Y
+      };
+
+      targetBodyPosRef.current = {
+        x: relativeX * 15, // Increased body lean for more visible movement
+        y: -relativeY * 12  // Increased body lean, inverted Y
+      };
+
+      targetClothPosRef.current = {
+        x: relativeX * 0.3, // Subtle cloth movement
+        y: -relativeY * 0.2  // Cloth responds to movement
+      };
+
+      // Start smooth tracking if not already running
+      if (!trackingRafRef.current) {
+        startSmoothTracking();
+      }
+    } catch (e) {
+      console.warn('Tracking target update error:', e);
+    }
+  }, []);
+
+  const startSmoothTracking = useCallback(() => {
+    const lerp = (current, target, factor) => {
+      return current + (target - current) * factor;
+    };
+
+    const updateTracking = () => {
+      try {
+        if (!modelRef.current?.internalModel?.coreModel) {
+          trackingRafRef.current = null;
+          return;
+        }
+
+        const model = modelRef.current.internalModel.coreModel;
+        const params = model.parameters || model._model?.parameters;
+
+        if (!params || !params.ids || !params.values) {
+          trackingRafRef.current = null;
+          return;
+        }
+
+        // Smoothly interpolate eye positions (more responsive)
+        currentEyePosRef.current.x = lerp(currentEyePosRef.current.x, targetEyePosRef.current.x, 0.15);
+        currentEyePosRef.current.y = lerp(currentEyePosRef.current.y, targetEyePosRef.current.y, 0.15);
+
+        // Smoothly interpolate head positions (more responsive but still smooth)
+        currentHeadPosRef.current.x = lerp(currentHeadPosRef.current.x, targetHeadPosRef.current.x, 0.08);
+        currentHeadPosRef.current.y = lerp(currentHeadPosRef.current.y, targetHeadPosRef.current.y, 0.08);
+
+        // Smoothly interpolate body positions (more responsive for natural movement)
+        currentBodyPosRef.current.x = lerp(currentBodyPosRef.current.x, targetBodyPosRef.current.x, 0.08);
+        currentBodyPosRef.current.y = lerp(currentBodyPosRef.current.y, targetBodyPosRef.current.y, 0.08);
+
+        // Smoothly interpolate cloth positions (more subtle and physics-like)
+        currentClothPosRef.current.x = lerp(currentClothPosRef.current.x, targetClothPosRef.current.x, 0.05);
+        currentClothPosRef.current.y = lerp(currentClothPosRef.current.y, targetClothPosRef.current.y, 0.05);
+
+        // Apply eye tracking parameters
+        const eyeXParams = ['ParamEyeBallX', 'PARAM_EYE_BALL_X', 'ParamEyeBallX'];
+        const eyeYParams = ['ParamEyeBallY', 'PARAM_EYE_BALL_Y', 'ParamEyeBallY'];
+
+        for (const paramName of eyeXParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1) {
+            params.values[idx] = currentEyePosRef.current.x;
+            break;
+          }
+        }
+
+        for (const paramName of eyeYParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1) {
+            params.values[idx] = currentEyePosRef.current.y;
+            break;
+          }
+        }
+
+        // Apply head tracking parameters
+        const headXParams = ['ParamAngleX', 'PARAM_ANGLE_X', 'ParamHeadAngleX'];
+        const headYParams = ['ParamAngleY', 'PARAM_ANGLE_Y', 'ParamHeadAngleY'];
+
+        for (const paramName of headXParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1) {
+            params.values[idx] = currentHeadPosRef.current.x;
+            break;
+          }
+        }
+
+        for (const paramName of headYParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1) {
+            params.values[idx] = currentHeadPosRef.current.y;
+            break;
+          }
+        }
+
+        // Apply body tracking parameters
+        const bodyXParams = ['ParamBodyAngleX', 'PARAM_BODY_ANGLE_X', 'ParamBodyX'];
+        const bodyYParams = ['ParamBodyAngleY', 'PARAM_BODY_ANGLE_Y', 'ParamBodyY'];
+
+        for (const paramName of bodyXParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1) {
+            params.values[idx] = currentBodyPosRef.current.x;
+            break;
+          }
+        }
+
+        for (const paramName of bodyYParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1) {
+            params.values[idx] = currentBodyPosRef.current.y;
+            break;
+          }
+        }
+
+        // Apply cloth physics parameters
+        const clothXParams = ['ParamCloth1', 'PARAM_CLOTH_1', 'ParamPhysics1', 'ParamClothX'];
+        const clothYParams = ['ParamCloth2', 'PARAM_CLOTH_2', 'ParamPhysics2', 'ParamClothY'];
+
+        for (const paramName of clothXParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1) {
+            params.values[idx] = currentClothPosRef.current.x;
+            break;
+          }
+        }
+
+        for (const paramName of clothYParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1) {
+            params.values[idx] = currentClothPosRef.current.y;
+            break;
+          }
+        }
+
+        // Add natural breathing animation
+        const breathTime = performance.now() * 0.001; // Convert to seconds
+        const breathValue = Math.sin(breathTime * 2) * 0.1; // Subtle breathing
+
+        const breathParams = ['ParamBreath', 'PARAM_BREATH'];
+        for (const paramName of breathParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1) {
+            params.values[idx] = breathValue;
+            break;
+          }
+        }
+
+        // Add subtle arm/pose movements
+        const armParams = ['ParamArmL', 'PARAM_ARM_L', 'ParamPose'];
+        const armValue = Math.sin(breathTime * 0.5) * 0.05; // Very subtle arm movement
+
+        for (const paramName of armParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1) {
+            params.values[idx] = armValue;
+            break;
+          }
+        }
+
+        // Continue animation
+        trackingRafRef.current = requestAnimationFrame(updateTracking);
+
+        // Stop if we've reached the target (within threshold)
+        const eyeThreshold = 0.005;
+        const headThreshold = 0.2;
+        const bodyThreshold = 0.1;
+        const clothThreshold = 0.01;
+        const eyeReached = Math.abs(currentEyePosRef.current.x - targetEyePosRef.current.x) < eyeThreshold &&
+                          Math.abs(currentEyePosRef.current.y - targetEyePosRef.current.y) < eyeThreshold;
+        const headReached = Math.abs(currentHeadPosRef.current.x - targetHeadPosRef.current.x) < headThreshold &&
+                           Math.abs(currentHeadPosRef.current.y - targetHeadPosRef.current.y) < headThreshold;
+        const bodyReached = Math.abs(currentBodyPosRef.current.x - targetBodyPosRef.current.x) < bodyThreshold &&
+                           Math.abs(currentBodyPosRef.current.y - targetBodyPosRef.current.y) < bodyThreshold;
+        const clothReached = Math.abs(currentClothPosRef.current.x - targetClothPosRef.current.x) < clothThreshold &&
+                            Math.abs(currentClothPosRef.current.y - targetClothPosRef.current.y) < clothThreshold;
+
+        if (eyeReached && headReached && bodyReached && clothReached) {
+          trackingRafRef.current = null;
+        }
+      } catch (e) {
+        console.warn('Smooth tracking error:', e);
+        trackingRafRef.current = null;
+      }
+    };
+
+    trackingRafRef.current = requestAnimationFrame(updateTracking);
+  }, []);
+
+  const startIdleAnimation = useCallback(() => {
+    const animateIdle = () => {
+      try {
+        if (!modelRef.current?.internalModel?.coreModel) {
+          idleAnimationRafRef.current = null;
+          return;
+        }
+
+        const model = modelRef.current.internalModel.coreModel;
+        const params = model.parameters || model._model?.parameters;
+
+        if (!params || !params.ids || !params.values) {
+          idleAnimationRafRef.current = null;
+          return;
+        }
+
+        const time = performance.now() * 0.001; // Convert to seconds
+
+        // Very subtle idle body sway
+        const swayValue = Math.sin(time * 0.3) * 2; // Slow, subtle movement
+
+        // Apply subtle idle movements to body
+        const bodyXParams = ['ParamBodyAngleX', 'PARAM_BODY_ANGLE_X', 'ParamBodyX'];
+        for (const paramName of bodyXParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1 && Math.abs(params.values[idx]) < 5) { // Only if not actively tracking
+            params.values[idx] = swayValue;
+            break;
+          }
+        }
+
+        // Add subtle idle cloth movement
+        const clothSwayX = Math.sin(time * 0.4) * 0.1; // Very subtle cloth sway
+        const clothSwayY = Math.sin(time * 0.6) * 0.05; // Even subtler vertical movement
+
+        const clothXParams = ['ParamCloth1', 'PARAM_CLOTH_1', 'ParamPhysics1', 'ParamClothX'];
+        const clothYParams = ['ParamCloth2', 'PARAM_CLOTH_2', 'ParamPhysics2', 'ParamClothY'];
+
+        for (const paramName of clothXParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1 && Math.abs(params.values[idx]) < 0.2) { // Only if not actively tracking
+            params.values[idx] = clothSwayX;
+            break;
+          }
+        }
+
+        for (const paramName of clothYParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1 && Math.abs(params.values[idx]) < 0.1) { // Only if not actively tracking
+            params.values[idx] = clothSwayY;
+            break;
+          }
+        }
+
+        // Subtle breathing
+        const breathValue = Math.sin(time * 1.5) * 0.15 + 0.1; // Breathing pattern
+
+        const breathParams = ['ParamBreath', 'PARAM_BREATH'];
+        for (const paramName of breathParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1) {
+            params.values[idx] = breathValue;
+            break;
+          }
+        }
+
+        idleAnimationRafRef.current = requestAnimationFrame(animateIdle);
+      } catch (e) {
+        console.warn('Idle animation error:', e);
+        idleAnimationRafRef.current = null;
+      }
+    };
+
+    idleAnimationRafRef.current = requestAnimationFrame(animateIdle);
+  }, []);
+
+  const applyEyeTracking = useCallback((cursorX, cursorY) => {
+    updateTrackingTargets(cursorX, cursorY);
+  }, [updateTrackingTargets]);
+
+  const handleCursorMove = useCallback((clientX, clientY) => {
+    setCursorPos({ x: clientX, y: clientY });
+    updateTrackingTargets(clientX, clientY);
+  }, [updateTrackingTargets]);
+
+  const startEyeTracking = useCallback(() => {
+    const handleMouseMove = (e) => {
+      handleCursorMove(e.clientX, e.clientY);
+    };
+
+    const handleTouchMove = (e) => {
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        handleCursorMove(touch.clientX, touch.clientY);
+      }
+    };
+
+    // Add event listeners
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
+
+    // Store cleanup function
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [handleCursorMove]);
+
+  const resetGazePosition = useCallback(() => {
+    // Reset targets to center
+    targetEyePosRef.current = { x: 0, y: 0 };
+    targetHeadPosRef.current = { x: 0, y: 0 };
+    targetBodyPosRef.current = { x: 0, y: 0 };
+    targetClothPosRef.current = { x: 0, y: 0 };
+
+    // Stop any ongoing smooth tracking
+    if (trackingRafRef.current) {
+      cancelAnimationFrame(trackingRafRef.current);
+      trackingRafRef.current = null;
+    }
+
+    try {
+      if (!modelRef.current?.internalModel?.coreModel) return;
+
+      const model = modelRef.current.internalModel.coreModel;
+      const params = model.parameters || model._model?.parameters;
+
+      if (!params || !params.ids || !params.values) return;
+
+      // Reset eye positions to center
+      const eyeXParams = ['ParamEyeBallX', 'PARAM_EYE_BALL_X', 'ParamEyeBallX'];
+      const eyeYParams = ['ParamEyeBallY', 'PARAM_EYE_BALL_Y', 'ParamEyeBallY'];
+
+      for (const paramName of eyeXParams) {
+        const idx = params.ids.indexOf(paramName);
+        if (idx !== -1) {
+          params.values[idx] = 0;
+          break;
+        }
+      }
+
+      for (const paramName of eyeYParams) {
+        const idx = params.ids.indexOf(paramName);
+        if (idx !== -1) {
+          params.values[idx] = 0;
+          break;
+        }
+      }
+
+      // Reset head positions to center
+      const headXParams = ['ParamAngleX', 'PARAM_ANGLE_X', 'ParamHeadAngleX'];
+      const headYParams = ['ParamAngleY', 'PARAM_ANGLE_Y', 'ParamHeadAngleY'];
+
+      for (const paramName of headXParams) {
+        const idx = params.ids.indexOf(paramName);
+        if (idx !== -1) {
+          params.values[idx] = 0;
+          break;
+        }
+      }
+
+      for (const paramName of headYParams) {
+        const idx = params.ids.indexOf(paramName);
+        if (idx !== -1) {
+          params.values[idx] = 0;
+          break;
+        }
+      }
+
+      // Reset body positions to center
+      const bodyXParams = ['ParamBodyAngleX', 'PARAM_BODY_ANGLE_X', 'ParamBodyX'];
+      const bodyYParams = ['ParamBodyAngleY', 'PARAM_BODY_ANGLE_Y', 'ParamBodyY'];
+
+      for (const paramName of bodyXParams) {
+        const idx = params.ids.indexOf(paramName);
+        if (idx !== -1) {
+          params.values[idx] = 0;
+          break;
+        }
+      }
+
+      for (const paramName of bodyYParams) {
+        const idx = params.ids.indexOf(paramName);
+        if (idx !== -1) {
+          params.values[idx] = 0;
+          break;
+        }
+      }
+
+      // Reset cloth positions to center
+      const clothXParams = ['ParamCloth1', 'PARAM_CLOTH_1', 'ParamPhysics1', 'ParamClothX'];
+      const clothYParams = ['ParamCloth2', 'PARAM_CLOTH_2', 'ParamPhysics2', 'ParamClothY'];
+
+      for (const paramName of clothXParams) {
+        const idx = params.ids.indexOf(paramName);
+        if (idx !== -1) {
+          params.values[idx] = 0;
+          break;
+        }
+      }
+
+      for (const paramName of clothYParams) {
+        const idx = params.ids.indexOf(paramName);
+        if (idx !== -1) {
+          params.values[idx] = 0;
+          break;
+        }
+      }
+
+      // Reset current positions
+      currentEyePosRef.current = { x: 0, y: 0 };
+      currentHeadPosRef.current = { x: 0, y: 0 };
+      currentBodyPosRef.current = { x: 0, y: 0 };
+      currentClothPosRef.current = { x: 0, y: 0 };
+    } catch (e) {
+      console.warn('Gaze reset error:', e);
     }
   }, []);
 
@@ -167,6 +614,25 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
     },
     startLipSync: (lipSync) => startLipSync(lipSync),
     stopLipSync: () => stopLipSync(),
+    startEyeTracking: () => startEyeTracking(),
+    stopEyeTracking: () => {
+      resetGazePosition();
+      if (eyeTrackingRafRef.current) {
+        cancelAnimationFrame(eyeTrackingRafRef.current);
+        eyeTrackingRafRef.current = null;
+      }
+      if (trackingRafRef.current) {
+        cancelAnimationFrame(trackingRafRef.current);
+        trackingRafRef.current = null;
+      }
+    },
+    startIdleAnimation: () => startIdleAnimation(),
+    stopIdleAnimation: () => {
+      if (idleAnimationRafRef.current) {
+        cancelAnimationFrame(idleAnimationRafRef.current);
+        idleAnimationRafRef.current = null;
+      }
+    },
   }));
 
   useEffect(() => {
@@ -236,10 +702,10 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
         console.log('📦 Model loaded, setting up...');
         
         // Setup model - Smaller scale for better fit
-        model.scale.set(0.2);  // Reduced from 0.25 to 0.2
+        model.scale.set(0.23);  // Reduced from 0.25 to 0.2
         model.anchor.set(0.5, 0.5);
         model.x = app.screen.width / 2;
-        model.y = app.screen.height / 2 + 50;
+        model.y = app.screen.height / 2 + 150;
         // Disable pointer interaction to avoid Pixi v7 interaction manager issues
         // with pixi-live2d-display; we focus on autonomous motions for now.
         model.eventMode = 'none';
@@ -265,6 +731,12 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
         setDebugInfo('');
         onReady?.();
 
+        // Start idle animation for natural movement
+        startIdleAnimation();
+
+        // Start eye tracking
+        const cleanupEyeTracking = startEyeTracking();
+
         // Resize handler
         const handleResize = () => {
           if (app && model && containerRef.current) {
@@ -272,16 +744,17 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
             const height = containerRef.current.clientHeight || 600;
             app.renderer.resize(width, height);
             model.x = width / 2;
-            model.y = height / 2 + 50;
+            model.y = height / 2 + 150;
           }
         };
 
         window.addEventListener('resize', handleResize);
         handleResize(); // Initial resize
 
-        // Cleanup resize listener
+        // Cleanup resize listener and eye tracking
         return () => {
           window.removeEventListener('resize', handleResize);
+          cleanupEyeTracking?.();
         };
 
       } catch (err) {
@@ -300,6 +773,15 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
       mounted = false;
       stopMouthAnimation();
       stopLipSync();
+      resetGazePosition();
+      if (trackingRafRef.current) {
+        cancelAnimationFrame(trackingRafRef.current);
+        trackingRafRef.current = null;
+      }
+      if (idleAnimationRafRef.current) {
+        cancelAnimationFrame(idleAnimationRafRef.current);
+        idleAnimationRafRef.current = null;
+      }
       if (app) {
         app.destroy(true, { children: true });
       }

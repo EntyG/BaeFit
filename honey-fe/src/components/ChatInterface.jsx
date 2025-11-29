@@ -194,8 +194,8 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-rose-950/40 to-purple-950/40 backdrop-blur-md rounded-2xl border border-rose-500/20 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-rose-950/50 border-b border-rose-500/20">
-        <h2 className="text-rose-200 font-medium flex items-center gap-2">
+      <div className="flex items-center justify-between px-6 py-4 bg-rose-950/50 border-b border-rose-500/20">
+        <h2 className="text-rose-200 font-medium text-lg flex items-center gap-2">
           <span className="text-xl">💬</span>
           Chat with Megumin
         </h2>
@@ -220,12 +220,12 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-rose-500/30">
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 scrollbar-thin scrollbar-thumb-rose-500/30">
         {messages.length === 0 && (
           <div className="text-center text-rose-300/60 py-8">
             <p className="text-4xl mb-2">🎀</p>
             <p>Say hello to Megumin!</p>
-            <p className="text-sm mt-1">Use voice or text to chat</p>
+            <p className="text-lg mt-1">Use voice or text to chat</p>
           </div>
         )}
 
@@ -249,15 +249,15 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
               >
                 {msg.type === 'yuki' && (
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-rose-300">Megumin</span>
+                    <span className="text-base font-medium text-rose-300">Megumin</span>
                     {msg.mood && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/30 text-rose-200">
+                      <span className="text-base px-2 py-0.5 rounded-full bg-rose-500/30 text-rose-200">
                         {msg.mood}
                       </span>
                     )}
                   </div>
                 )}
-                <p className="text-sm leading-relaxed">{msg.text}</p>
+                <p className="text-lg leading-relaxed">{msg.text}</p>
               </div>
             </motion.div>
           ))}
@@ -277,7 +277,7 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
                   <span className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                   <span className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
-                <span className="text-sm">{processingStage}</span>
+                <span className="text-lg">{processingStage}</span>
               </div>
             </div>
           </motion.div>
@@ -287,7 +287,7 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
       </div>
 
       {/* Input area */}
-      <div className="p-4 bg-rose-950/50 border-t border-rose-500/20">
+      <div className="px-6 py-5 bg-rose-950/50 border-t border-rose-500/20">
         <div className="flex items-center gap-3">
           {/* Voice button - Toggle mode */}
           <motion.button
@@ -333,7 +333,7 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center text-red-400 text-sm mt-2"
+            className="text-center text-red-400 text-lg mt-2"
           >
             🎤 Recording... Click to stop
           </motion.p>

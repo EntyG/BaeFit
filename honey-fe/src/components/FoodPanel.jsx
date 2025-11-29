@@ -28,14 +28,14 @@ const formatNum = (num) => {
 
 // Sample food database with nutrition info
 const FOOD_DATABASE = [
-  { id: 1, name: 'Grilled Chicken Breast', calories: 165, protein: 31, carbs: 0, fat: 3.6, category: 'protein', emoji: '🍗', healthy: true },
+  { id: 1, name: 'Eggs', calories: 156, protein: 13, carbs: 1.1, fat: 11, category: 'protein', emoji: '🥚', healthy: true },
   { id: 2, name: 'Brown Rice', calories: 216, protein: 5, carbs: 45, fat: 1.8, category: 'carbs', emoji: '🍚', healthy: true },
   { id: 3, name: 'Broccoli', calories: 55, protein: 3.7, carbs: 11, fat: 0.6, category: 'vegetable', emoji: '🥦', healthy: true },
   { id: 4, name: 'Salmon Fillet', calories: 208, protein: 20, carbs: 0, fat: 13, category: 'protein', emoji: '🐟', healthy: true },
   { id: 5, name: 'Sweet Potato', calories: 103, protein: 2.3, carbs: 24, fat: 0.1, category: 'carbs', emoji: '🍠', healthy: true },
   { id: 6, name: 'Greek Yogurt', calories: 100, protein: 17, carbs: 6, fat: 0.7, category: 'dairy', emoji: '🥛', healthy: true },
   { id: 7, name: 'Avocado', calories: 160, protein: 2, carbs: 9, fat: 15, category: 'fat', emoji: '🥑', healthy: true },
-  { id: 8, name: 'Eggs (2)', calories: 156, protein: 13, carbs: 1.1, fat: 11, category: 'protein', emoji: '🥚', healthy: true },
+  { id: 8, name: 'Chicken', calories: 165, protein: 31, carbs: 0, fat: 3.6, category: 'protein', emoji: '🍗', healthy: true },
   { id: 9, name: 'Spinach Salad', calories: 23, protein: 2.9, carbs: 3.6, fat: 0.4, category: 'vegetable', emoji: '🥗', healthy: true },
   { id: 10, name: 'Banana', calories: 105, protein: 1.3, carbs: 27, fat: 0.4, category: 'fruit', emoji: '🍌', healthy: true },
   { id: 11, name: 'Pizza Slice', calories: 285, protein: 12, carbs: 36, fat: 10, category: 'junk', emoji: '🍕', healthy: false },
@@ -54,17 +54,17 @@ const FOOD_DATABASE = [
 const MEAL_SUGGESTIONS = {
   breakfast: [
     { foods: ['Oatmeal', 'Banana', 'Green Tea'], message: "Start your day with energy! Oatmeal keeps you full~" },
-    { foods: ['Eggs (2)', 'Avocado', 'Green Tea'], message: "Protein power breakfast! You'll feel amazing!" },
+    { foods: ['Eggs', 'Avocado', 'Green Tea'], message: "Protein power breakfast! You'll feel amazing!" },
     { foods: ['Greek Yogurt', 'Apple', 'Almonds (1oz)'], message: "Light but nutritious! Perfect for busy mornings~" },
   ],
   lunch: [
-    { foods: ['Grilled Chicken Breast', 'Brown Rice', 'Broccoli'], message: "Balanced lunch! Your muscles will thank you~" },
+    { foods: ['Chicken', 'Brown Rice', 'Broccoli'], message: "Balanced lunch! Your muscles will thank you~" },
     { foods: ['Salmon Fillet', 'Quinoa', 'Spinach Salad'], message: "Omega-3 boost! Great for your brain, sugoi!" },
-    { foods: ['Sweet Potato', 'Eggs (2)', 'Avocado'], message: "Comfort food but healthy! Win-win~" },
+    { foods: ['Sweet Potato', 'Egg', 'Avocado'], message: "Comfort food but healthy! Win-win~" },
   ],
   dinner: [
     { foods: ['Salmon Fillet', 'Sweet Potato', 'Broccoli'], message: "Light dinner for better sleep! Ganbatte~" },
-    { foods: ['Grilled Chicken Breast', 'Spinach Salad', 'Avocado'], message: "Low carb evening! You're doing great!" },
+    { foods: ['Chicken', 'Spinach Salad', 'Avocado'], message: "Low carb evening! You're doing great!" },
     { foods: ['Greek Yogurt', 'Almonds (1oz)'], message: "Keep it simple tonight~ Your body will rest well!" },
   ],
   snack: [
@@ -254,10 +254,10 @@ const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) =
   ];
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-emerald-950/40 to-teal-950/40 backdrop-blur-md rounded-2xl border border-emerald-500/20 overflow-hidden">
+    <div className="flex flex-col gap-4 h-full bg-gradient-to-b from-emerald-950/40 to-teal-950/40 backdrop-blur-md rounded-2xl border border-emerald-500/20 overflow-hidden p-4">
       {/* Header with Daily Progress */}
-      <div className="px-6 py-5 bg-emerald-950/50 border-b border-emerald-500/20">
-        <div className="flex items-center justify-between mb-4">
+      <div className="px-6 py-5 bg-emerald-950/50 border-b border-emerald-500/20 flex-shrink-0 rounded-t-xl">
+        <div className="flex items-center justify-between mb-3">
           <h2 className="text-emerald-200 font-semibold flex items-center gap-2 text-base">
             <span className="text-xl">🥗</span>
             Today's Nutrition
@@ -275,8 +275,8 @@ const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) =
         </div>
 
         {/* Calorie Progress Bar */}
-        <div className="relative mt-1 space-y-2">
-          <div className="flex justify-between text-xs mb-1">
+        <div className="relative mb-3">
+          <div className="flex justify-between text-xs mb-1.5">
             <span className="text-emerald-300 flex items-center gap-1">
               <Flame size={12} /> {dailyTotals.calories} kcal
             </span>
@@ -296,21 +296,21 @@ const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) =
         </div>
 
         {/* Macro Summary */}
-        <div className="flex gap-3 mt-4">
+        <div className="flex gap-3">
           <div className="flex-1 text-center py-3 px-3 bg-emerald-900/30 rounded-lg">
-            <div className="text-xs text-emerald-400/70 flex items-center justify-center gap-1 mb-1">
+            <div className="text-xs text-emerald-400/70 flex items-center justify-center gap-1 mb-1.5">
               <Beef size={11} /> Protein
             </div>
             <div className="text-sm font-bold text-emerald-200">{formatNum(dailyTotals.protein)}g</div>
           </div>
           <div className="flex-1 text-center py-3 px-3 bg-emerald-900/30 rounded-lg">
-            <div className="text-xs text-emerald-400/70 flex items-center justify-center gap-1 mb-1">
+            <div className="text-xs text-emerald-400/70 flex items-center justify-center gap-1 mb-1.5">
               <Wheat size={11} /> Carbs
             </div>
             <div className="text-sm font-bold text-emerald-200">{formatNum(dailyTotals.carbs)}g</div>
           </div>
           <div className="flex-1 text-center py-3 px-3 bg-emerald-900/30 rounded-lg">
-            <div className="text-xs text-emerald-400/70 flex items-center justify-center gap-1 mb-1">
+            <div className="text-xs text-emerald-400/70 flex items-center justify-center gap-1 mb-1.5">
               <Droplets size={11} /> Fat
             </div>
             <div className="text-sm font-bold text-emerald-200">{formatNum(dailyTotals.fat)}g</div>
@@ -319,10 +319,10 @@ const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) =
       </div>
 
       {/* Megumin's Suggestion */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mx-4 mt-4 p-3.5 bg-gradient-to-r from-rose-500/20 to-pink-500/20 rounded-xl border border-rose-500/30"
+        className="mx-6 p-4 bg-gradient-to-r from-rose-500/20 to-pink-500/20 rounded-xl border border-rose-500/30 flex-shrink-0"
       >
         <div className="flex items-start gap-2">
           <span className="text-2xl">🎀</span>
@@ -353,12 +353,12 @@ const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) =
       </motion.div>
 
       {/* Generate Meal Plan Button */}
-      <div className="mx-4 mt-3">
+      <div className="px-6 flex-shrink-0">
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={generateMealPlan}
-          className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600/50 to-teal-600/50 hover:from-emerald-600/70 hover:to-teal-600/70 text-emerald-100 rounded-xl transition-all flex items-center justify-center gap-2 border border-emerald-500/30"
+          className="w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600/50 to-teal-600/50 hover:from-emerald-600/70 hover:to-teal-600/70 text-emerald-100 rounded-xl transition-all flex items-center justify-center gap-2 border border-emerald-500/30"
         >
           <ListPlus size={18} />
           <span className="font-medium text-sm">Generate Healthy Meal Plan</span>
@@ -367,7 +367,7 @@ const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) =
       </div>
 
       {/* Today's Food Log */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-thin">
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 scrollbar-thin min-h-0">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium text-emerald-300 flex items-center gap-1.5">
             <Clock size={14} /> Food Log
@@ -404,7 +404,7 @@ const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) =
                 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                className={`relative flex items-center gap-3 p-2.5 rounded-xl transition-all ${
+                className={`relative flex items-center gap-3 p-3 rounded-xl transition-all ${
                   recentlyAdded.includes(food.logId)
                     ? 'bg-emerald-700/50 border-2 border-emerald-400/60 ring-2 ring-emerald-400/30'
                     : food.healthy 
@@ -455,7 +455,7 @@ const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) =
       </div>
 
       {/* Quick Stats Footer */}
-      <div className="px-5 py-3 bg-emerald-950/50 border-t border-emerald-500/20">
+      <div className="px-6 py-4 bg-emerald-950/50 border-t border-emerald-500/20 flex-shrink-0">
         <div className="flex items-center justify-between text-xs">
           <span className="text-emerald-400/70 font-medium">
             {todaysFoods.length} items logged
@@ -485,7 +485,7 @@ const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) =
               className="w-full max-w-sm bg-gradient-to-b from-emerald-950 to-teal-950 rounded-2xl border border-emerald-500/30 overflow-hidden"
             >
               {/* Modal Header */}
-              <div className="p-4 border-b border-emerald-500/20">
+              <div className="px-6 py-5 border-b border-emerald-500/20">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-semibold text-emerald-200">Add Food</h3>
                   <button
@@ -528,7 +528,7 @@ const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) =
               </div>
 
               {/* Food List */}
-              <div className="max-h-64 overflow-y-auto p-2 space-y-1 scrollbar-thin">
+              <div className="max-h-64 overflow-y-auto px-6 py-4 space-y-1 scrollbar-thin">
                 {filteredFoods.map((food) => (
                   <motion.button
                     key={food.id}
@@ -578,7 +578,7 @@ const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) =
               className="w-full max-w-sm bg-gradient-to-b from-emerald-950 to-teal-950 rounded-2xl border border-emerald-500/30 overflow-hidden max-h-[90vh] flex flex-col"
             >
               {/* Modal Header */}
-              <div className="p-4 border-b border-emerald-500/20 bg-emerald-900/30">
+              <div className="px-6 py-5 border-b border-emerald-500/20 bg-emerald-900/30">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-emerald-200 flex items-center gap-2">
                     <Sparkles size={18} className="text-yellow-400" />
@@ -624,7 +624,7 @@ const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) =
               </div>
 
               {/* Meal Sections */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-thin">
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 scrollbar-thin">
                 {/* Breakfast */}
                 <div className="p-3 bg-amber-900/20 rounded-xl border border-amber-500/20">
                   <h4 className="text-sm font-medium text-amber-300 mb-2 flex items-center gap-2">
@@ -691,7 +691,7 @@ const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) =
               </div>
 
               {/* Action Buttons */}
-              <div className="p-3 border-t border-emerald-500/20 bg-emerald-950/50">
+              <div className="px-6 py-4 border-t border-emerald-500/20 bg-emerald-950/50">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}

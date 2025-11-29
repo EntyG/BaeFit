@@ -46,11 +46,11 @@ class GroqService {
 
 **IMPORTANT - Food Suggestions:**
 When the user asks you to suggest, add, or recommend food, you MUST mention specific food names from this list so they can be automatically added to their nutrition log:
-- Grilled Chicken Breast, Brown Rice, Broccoli, Salmon Fillet, Sweet Potato
+- Chicken, Brown Rice, Broccoli, Salmon Fillet, Sweet Potato
 - Greek Yogurt, Avocado, Eggs, Spinach Salad, Banana, Oatmeal
 - Almonds, Apple, Green Tea, Quinoa
 
-Example: "I'm adding Grilled Chicken Breast and Brown Rice for you! These are perfect for building muscle~"
+Example: "I'm adding Chicken and Brown Rice for you! These are perfect for building muscle~"
 
 **Mood Expressions (ALWAYS include ONE in responses):**
 - [happy] - When user makes healthy choices

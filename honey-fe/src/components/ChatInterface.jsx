@@ -168,7 +168,11 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
       currentAudioRef.current.pause();
     }
     
-    const audio = new Audio(url);
+    // Construct full audio URL (backend returns relative path like /audio/xxx.mp3)
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const audioUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
+    
+    const audio = new Audio(audioUrl);
     currentAudioRef.current = audio;
     audio.play().catch(console.error);
   };

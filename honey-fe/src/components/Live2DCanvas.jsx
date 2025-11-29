@@ -232,7 +232,12 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
         model.y = app.screen.height / 2 + 50;
         // Disable pointer interaction to avoid Pixi v7 interaction manager issues
         // with pixi-live2d-display; we focus on autonomous motions for now.
-        model.buttonMode = false;
+        model.eventMode = 'none';
+        model.interactiveChildren = false;
+        // Ensure isInteractive exists for Pixi v7 EventBoundary hit-testing
+        if (typeof model.isInteractive !== 'function') {
+          model.isInteractive = () => false;
+        }
 
         app.stage.addChild(model);
 

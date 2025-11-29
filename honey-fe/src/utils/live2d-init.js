@@ -22,10 +22,13 @@ Live2DModel.registerTicker(PIXI.Ticker);
 
 // Monkey-patch interaction methods to prevent Pixi v7 incompatibility errors
 // pixi-live2d-display tries to use renderer.plugins.interaction which is deprecated in v7
+// and doesn't implement isInteractive() which v7's EventBoundary expects.
 if (Live2DModel.prototype) {
   const noop = () => {};
   Live2DModel.prototype.registerInteraction = noop;
   Live2DModel.prototype.unregisterInteraction = noop;
+  // Pixi v7 EventBoundary calls isInteractive() during hit-testing
+  Live2DModel.prototype.isInteractive = () => false;
 }
 
 // Log configuration status

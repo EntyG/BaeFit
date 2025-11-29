@@ -20,6 +20,14 @@ if (typeof window !== 'undefined') {
 // Register the Ticker for animations
 Live2DModel.registerTicker(PIXI.Ticker);
 
+// Monkey-patch interaction methods to prevent Pixi v7 incompatibility errors
+// pixi-live2d-display tries to use renderer.plugins.interaction which is deprecated in v7
+if (Live2DModel.prototype) {
+  const noop = () => {};
+  Live2DModel.prototype.registerInteraction = noop;
+  Live2DModel.prototype.unregisterInteraction = noop;
+}
+
 // Log configuration status
 console.log('✅ Live2DModel initialized with PIXI Ticker');
 console.log('📦 Waiting for Live2DCubismCore...');

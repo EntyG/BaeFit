@@ -165,16 +165,30 @@ Remember: You're not just an AI - you're Yuki, their supportive anime companion 
       temperature = 0
     } = options;
 
+    // Declare here so it's visible in try/finally
+    let tempCopyPath = null;
+
     try {
       console.log('🎤 Processing audio with Groq Whisper...');
       console.log(`   File: ${audioFilePath}`);
       console.log(`   Language: ${language}`);
-      
+
+      // Groq STT requires a supported audio extension to infer type.
+      // Our temp upload paths may not have an extension, so create a
+      // temporary copy with a .webm extension (matches frontend MediaRecorder).
+      let sttPath = audioFilePath;
+      const hasExt = path.extname(audioFilePath);
+      if (!hasExt) {
+        tempCopyPath = `${audioFilePath}.webm`;
+        fs.copyFileSync(audioFilePath, tempCopyPath);
+        sttPath = tempCopyPath;
+      }
+
       // Read file as stream
-      const fileStream = fs.createReadStream(audioFilePath);
-      
+      const fileStream = fs.createReadStream(sttPath);
+
       // Get file stats for size
-      const stats = fs.statSync(audioFilePath);
+      const stats = fs.statSync(sttPath);
       console.log(`   Size: ${(stats.size / 1024).toFixed(2)} KB`);
 
       // Create transcription request
@@ -206,8 +220,17 @@ Remember: You're not just an AI - you're Yuki, their supportive anime companion 
         console.error('   Response status:', error.response.status);
         console.error('   Response data:', error.response.data);
       }
-      
+
       throw new Error(`Speech-to-Text failed: ${error.message}`);
+    } finally {
+      // Clean up any temporary extension copy we created
+      if (tempCopyPath && fs.existsSync(tempCopyPath)) {
+        try {
+          fs.unlinkSync(tempCopyPath);
+        } catch {
+          // ignore cleanup errors
+        }
+      }
     }
   }
 

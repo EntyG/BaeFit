@@ -241,9 +241,14 @@ class TypecastService {
 
       // API returns audio data directly as arrayBuffer
       const audioData = await response.arrayBuffer();
-      
-      // Save audio to local file
-      const audioUrl = await this.saveAudio(Buffer.from(audioData));
+
+      // Determine file extension from Content-Type header so the browser
+      // can correctly decode the audio (avoids NotSupportedError).
+      const contentType = response.headers.get('content-type') || 'audio/mpeg';
+      const extension = this.getExtensionFromContentType(contentType);
+
+      // Save audio to local file with appropriate extension
+      const audioUrl = await this.saveAudio(Buffer.from(audioData), 'public/audio', extension);
       
       // Estimate duration (~80ms per character for speech)
       const estimatedDuration = Math.max(text.length * 80, 1000);
@@ -267,8 +272,9 @@ class TypecastService {
   /**
    * Save audio buffer to file
    */
-  async saveAudio(buffer, outputDir = 'public/audio') {
-    const filename = `${uuidv4()}.wav`;
+  async saveAudio(buffer, outputDir = 'public/audio', extension = 'wav') {
+    const safeExt = extension.startsWith('.') ? extension.slice(1) : extension;
+    const filename = `${uuidv4()}.${safeExt}`;
     const filepath = path.join(outputDir, filename);
 
     if (!fs.existsSync(outputDir)) {
@@ -279,6 +285,23 @@ class TypecastService {
     
     // Return URL path (will be served by Express static)
     return `/audio/${filename}`;
+  }
+
+  /**
+   * Map Content-Type header to file extension
+   */
+  getExtensionFromContentType(contentType) {
+    const ct = contentType.split(';')[0].trim().toLowerCase();
+    const map = {
+      'audio/wav': 'wav',
+      'audio/x-wav': 'wav',
+      'audio/wave': 'wav',
+      'audio/mpeg': 'mp3',
+      'audio/mp3': 'mp3',
+      'audio/ogg': 'ogg',
+      'audio/webm': 'webm'
+    };
+    return map[ct] || 'mp3';
   }
 
   /**

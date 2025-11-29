@@ -58,12 +58,17 @@ function App() {
 
       newAudio.onplay = () => {
         setIsSpeaking(true);
-        live2dRef.current?.startSpeaking();
+        if (avatar?.lipSync) {
+          live2dRef.current?.startLipSync(avatar.lipSync);
+        } else {
+          live2dRef.current?.startSpeaking();
+        }
       };
 
       newAudio.onended = () => {
         setIsSpeaking(false);
-        live2dRef.current?.stopSpeaking();
+        live2dRef.current?.stopLipSync?.();
+        live2dRef.current?.stopSpeaking?.();
         // Return to idle after speaking
         setTimeout(() => {
           live2dRef.current?.playMotion('idle');
@@ -72,7 +77,8 @@ function App() {
 
       newAudio.onerror = () => {
         setIsSpeaking(false);
-        live2dRef.current?.stopSpeaking();
+        live2dRef.current?.stopLipSync?.();
+        live2dRef.current?.stopSpeaking?.();
       };
 
       newAudio.play().catch(console.error);

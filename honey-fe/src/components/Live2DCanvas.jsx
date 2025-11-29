@@ -24,9 +24,111 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
   const appRef = useRef(null);
   const modelRef = useRef(null);
   const mouthIntervalRef = useRef(null);
+  const lipSyncDataRef = useRef(null);
+  const lipSyncStartTimeRef = useRef(0);
+  const lipSyncRafRef = useRef(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [debugInfo, setDebugInfo] = useState('Initializing...');
+
+  const applyMouthOpen = useCallback((value) => {
+    try {
+      if (!modelRef.current?.internalModel?.coreModel) return;
+
+      const model = modelRef.current.internalModel.coreModel;
+      const params = model.parameters || model._model?.parameters;
+
+      if (params && params.ids && params.values) {
+        const mouthParams = ['ParamMouthOpenY', 'PARAM_MOUTH_OPEN_Y', 'Param23'];
+        for (const paramName of mouthParams) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1) {
+            params.values[idx] = value;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Mouth animation error:', e);
+    }
+  }, []);
+
+  const stopLipSync = useCallback(() => {
+    if (lipSyncRafRef.current) {
+      cancelAnimationFrame(lipSyncRafRef.current);
+      lipSyncRafRef.current = null;
+    }
+    lipSyncDataRef.current = null;
+    lipSyncStartTimeRef.current = 0;
+    applyMouthOpen(0);
+  }, [applyMouthOpen]);
+
+  const startLipSync = useCallback((lipSync) => {
+    if (!modelRef.current || !lipSync || !Array.isArray(lipSync.visemes)) {
+      console.warn('Invalid lipSync data or model not ready');
+      return;
+    }
+
+    lipSyncDataRef.current = lipSync;
+    lipSyncStartTimeRef.current = performance.now();
+
+    const loop = () => {
+      if (!modelRef.current || !lipSyncDataRef.current) return;
+
+      const { visemes, mouthShapes } = lipSyncDataRef.current;
+      const elapsed = performance.now() - lipSyncStartTimeRef.current;
+
+      let current = null;
+      for (const v of visemes) {
+        if (elapsed >= v.time && elapsed <= v.time + v.duration) {
+          current = v;
+          break;
+        }
+      }
+
+      let mouthOpen = 0;
+      if (current) {
+        const shape = mouthShapes?.[current.viseme];
+        const baseOpen = shape?.mouth_open ?? 0.6;
+        const intensity = current.value ?? 1.0;
+        mouthOpen = Math.max(0, Math.min(1, baseOpen * intensity));
+      }
+
+      applyMouthOpen(mouthOpen);
+      lipSyncRafRef.current = requestAnimationFrame(loop);
+    };
+
+    if (lipSyncRafRef.current) {
+      cancelAnimationFrame(lipSyncRafRef.current);
+    }
+    lipSyncRafRef.current = requestAnimationFrame(loop);
+  }, [applyMouthOpen]);
+
+  const startMouthAnimation = useCallback(() => {
+    if (lipSyncDataRef.current) return;
+    if (mouthIntervalRef.current || !modelRef.current) return;
+    
+    let value = 0;
+    let direction = 1;
+    
+    mouthIntervalRef.current = setInterval(() => {
+      if (!modelRef.current?.internalModel?.coreModel) return;
+      
+      value += direction * 0.15;
+      if (value >= 1) direction = -1;
+      if (value <= 0) direction = 1;
+      
+      applyMouthOpen(value);
+    }, 50);
+  }, [applyMouthOpen]);
+
+  const stopMouthAnimation = useCallback(() => {
+    if (mouthIntervalRef.current) {
+      clearInterval(mouthIntervalRef.current);
+      mouthIntervalRef.current = null;
+    }
+    applyMouthOpen(0);
+  }, [applyMouthOpen]);
 
   useImperativeHandle(ref, () => ({
     playMotion: (motionName) => {
@@ -49,48 +151,13 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
       }
     },
     startSpeaking: () => startMouthAnimation(),
-    stopSpeaking: () => stopMouthAnimation(),
+    stopSpeaking: () => {
+      stopMouthAnimation();
+      stopLipSync();
+    },
+    startLipSync: (lipSync) => startLipSync(lipSync),
+    stopLipSync: () => stopLipSync(),
   }));
-
-  const startMouthAnimation = useCallback(() => {
-    if (mouthIntervalRef.current || !modelRef.current) return;
-    
-    let value = 0;
-    let direction = 1;
-    
-    mouthIntervalRef.current = setInterval(() => {
-      if (!modelRef.current?.internalModel?.coreModel) return;
-      
-      value += direction * 0.15;
-      if (value >= 1) direction = -1;
-      if (value <= 0) direction = 1;
-      
-      try {
-        const model = modelRef.current.internalModel.coreModel;
-        const params = model.parameters || model._model?.parameters;
-        
-        if (params && params.ids && params.values) {
-          const mouthParams = ['ParamMouthOpenY', 'PARAM_MOUTH_OPEN_Y', 'Param23'];
-          for (const paramName of mouthParams) {
-            const idx = params.ids.indexOf(paramName);
-            if (idx !== -1) {
-              params.values[idx] = value;
-              break;
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Mouth animation error:', e);
-      }
-    }, 50);
-  }, []);
-
-  const stopMouthAnimation = useCallback(() => {
-    if (mouthIntervalRef.current) {
-      clearInterval(mouthIntervalRef.current);
-      mouthIntervalRef.current = null;
-    }
-  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -146,7 +213,11 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
         console.log('🎮 PIXI v7 initialized, loading model...');
 
         // Load model
-        const model = await Live2DModel.from('/live2d/yuki/c001_f_costume_kouma.model3.json');
+        // Disable internal autoInteract to avoid Pixi v7 interaction manager incompatibility,
+        // we'll manage simple click interactions ourselves.
+        const model = await Live2DModel.from('/live2d/yuki/c001_f_costume_kouma.model3.json', {
+          autoInteract: false,
+        });
         
         if (!mounted) return;
         modelRef.current = model;
@@ -159,8 +230,9 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
         model.anchor.set(0.5, 0.5);
         model.x = app.screen.width / 2;
         model.y = app.screen.height / 2 + 50;
-        model.interactive = true;
-        model.buttonMode = true;
+        // Disable pointer interaction to avoid Pixi v7 interaction manager issues
+        // with pixi-live2d-display; we focus on autonomous motions for now.
+        model.buttonMode = false;
 
         app.stage.addChild(model);
 
@@ -177,16 +249,6 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
         setError(null);
         setDebugInfo('');
         onReady?.();
-
-        // Click handler
-        model.on('pointertap', () => {
-          const moods = ['happy', 'surprised', 'shy', 'excited'];
-          const randomMood = moods[Math.floor(Math.random() * moods.length)];
-          if (MOOD_TO_MOTION[randomMood]) {
-            console.log(`🎀 Playing ${randomMood} motion`);
-            model.motion(MOOD_TO_MOTION[randomMood]).catch(console.warn);
-          }
-        });
 
         // Resize handler
         const handleResize = () => {
@@ -222,11 +284,12 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
     return () => {
       mounted = false;
       stopMouthAnimation();
+      stopLipSync();
       if (app) {
         app.destroy(true, { children: true });
       }
     };
-  }, [onReady, stopMouthAnimation]);
+  }, [onReady, stopMouthAnimation, stopLipSync]);
 
   // Mood changes
   useEffect(() => {
@@ -244,8 +307,9 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
     } else {
       console.log('🤐 Yuki stopped speaking');
       stopMouthAnimation();
+      stopLipSync();
     }
-  }, [isSpeaking, startMouthAnimation, stopMouthAnimation]);
+  }, [isSpeaking, startMouthAnimation, stopMouthAnimation, stopLipSync]);
 
   return (
     <div ref={containerRef} className="relative w-full h-full">

@@ -41,7 +41,7 @@ const FOOD_DATABASE = [
   { id: 20, name: 'Quinoa', calories: 222, protein: 8, carbs: 39, fat: 3.6, category: 'carbs', emoji: '🌾', healthy: true },
 ];
 
-// Yuki's food suggestions based on time and goals
+// Megumin's food suggestions based on time and goals
 const MEAL_SUGGESTIONS = {
   breakfast: [
     { foods: ['Oatmeal', 'Banana', 'Green Tea'], message: "Start your day with energy! Oatmeal keeps you full~" },
@@ -61,7 +61,7 @@ const MEAL_SUGGESTIONS = {
   snack: [
     { foods: ['Apple', 'Almonds (1oz)'], message: "Healthy snack time! Much better than chips~" },
     { foods: ['Banana', 'Greek Yogurt'], message: "Quick energy boost! Kawaii snacking~" },
-    { foods: ['Green Tea'], message: "Stay hydrated! Tea time with Yuki~" },
+    { foods: ['Green Tea'], message: "Stay hydrated! Tea time with Megumin~" },
   ],
 };
 
@@ -110,7 +110,7 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
     setTodaysFoods(prev => [...prev, newEntry]);
     setShowAddFood(false);
     
-    // Notify parent for Yuki's reaction
+    // Notify parent for Megumin's reaction
     onFoodLog?.(newEntry);
   };
 
@@ -127,7 +127,7 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
 
   const [currentSuggestion] = useState(getCurrentSuggestion());
 
-  // Ask Yuki about a food
+  // Ask Megumin about a food
   const askYukiAboutFood = (food) => {
     const question = food.healthy 
       ? `Tell me about the benefits of eating ${food.name}!`
@@ -216,7 +216,7 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
         </div>
       </div>
 
-      {/* Yuki's Suggestion */}
+      {/* Megumin's Suggestion */}
       <motion.div 
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -226,7 +226,7 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
           <span className="text-2xl">🎀</span>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-medium text-rose-300">Yuki suggests for {currentMealType}:</span>
+              <span className="text-xs font-medium text-rose-300">Megumin suggests for {currentMealType}:</span>
               <Sparkles size={12} className="text-yellow-400" />
             </div>
             <p className="text-xs text-rose-200/80 mb-2">{currentSuggestion.message}</p>
@@ -306,7 +306,7 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
                   <button
                     onClick={() => askYukiAboutFood(food)}
                     className="p-1.5 hover:bg-emerald-500/30 rounded-lg transition-colors"
-                    title="Ask Yuki"
+                    title="Ask Megumin"
                   >
                     <span className="text-sm">💬</span>
                   </button>

@@ -21,40 +21,41 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Start voice recording
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
-      audioChunksRef.current = [];
+  // Toggle recording (instead of hold)
+  const toggleRecording = async () => {
+    if (isRecording) {
+      // Stop recording
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+        setIsRecording(false);
+      }
+    } else {
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorderRef.current = new MediaRecorder(stream, {
+          mimeType: 'audio/webm;codecs=opus'
+        });
+        audioChunksRef.current = [];
 
-      mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          audioChunksRef.current.push(e.data);
-        }
-      };
+        mediaRecorderRef.current.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+          }
+        };
 
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await processVoiceInput(audioBlob);
-        stream.getTracks().forEach(track => track.stop());
-      };
+        mediaRecorderRef.current.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          await processVoiceInput(audioBlob);
+          stream.getTracks().forEach(track => track.stop());
+        };
 
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error('Failed to start recording:', error);
-      alert('Please allow microphone access to use voice chat.');
-    }
-  };
-
-  // Stop voice recording
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+        mediaRecorderRef.current.start();
+        setIsRecording(true);
+      } catch (error) {
+        console.error('Failed to start recording:', error);
+        alert('Please allow microphone access to use voice chat.');
+      }
     }
   };
 
@@ -64,7 +65,7 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
     setProcessingStage('Listening...');
 
     try {
-      setProcessingStage('Yuki is thinking...');
+      setProcessingStage('Megumin is thinking...');
       
       const response = await chatWithVoice(audioBlob, {
         sessionId,
@@ -81,7 +82,7 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
           text: userMessage,
         }]);
 
-        // Add Yuki's response
+        // Add Megumin's response
         setMessages(prev => [...prev, {
           id: Date.now() + 1,
           type: 'yuki',
@@ -116,7 +117,7 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
     const message = inputText.trim();
     setInputText('');
     setIsProcessing(true);
-    setProcessingStage('Yuki is thinking...');
+    setProcessingStage('Megumin is thinking...');
 
     // Add user message immediately
     setMessages(prev => [...prev, {
@@ -134,7 +135,7 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
       if (response.success) {
         const { yukiResponse, audio } = response.data;
 
-        // Add Yuki's response
+        // Add Megumin's response
         setMessages(prev => [...prev, {
           id: Date.now() + 1,
           type: 'yuki',
@@ -196,7 +197,7 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
       <div className="flex items-center justify-between px-4 py-3 bg-rose-950/50 border-b border-rose-500/20">
         <h2 className="text-rose-200 font-medium flex items-center gap-2">
           <span className="text-xl">💬</span>
-          Chat with Yuki
+          Chat with Megumin
         </h2>
         <div className="flex items-center gap-2">
           <button
@@ -223,7 +224,7 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
         {messages.length === 0 && (
           <div className="text-center text-rose-300/60 py-8">
             <p className="text-4xl mb-2">🎀</p>
-            <p>Say hello to Yuki!</p>
+            <p>Say hello to Megumin!</p>
             <p className="text-sm mt-1">Use voice or text to chat</p>
           </div>
         )}
@@ -248,7 +249,7 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
               >
                 {msg.type === 'yuki' && (
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-rose-300">Yuki</span>
+                    <span className="text-xs font-medium text-rose-300">Megumin</span>
                     {msg.mood && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/30 text-rose-200">
                         {msg.mood}
@@ -288,22 +289,18 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
       {/* Input area */}
       <div className="p-4 bg-rose-950/50 border-t border-rose-500/20">
         <div className="flex items-center gap-3">
-          {/* Voice button */}
+          {/* Voice button - Toggle mode */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onMouseDown={startRecording}
-            onMouseUp={stopRecording}
-            onMouseLeave={stopRecording}
-            onTouchStart={startRecording}
-            onTouchEnd={stopRecording}
+            onClick={toggleRecording}
             disabled={isProcessing}
             className={`p-4 rounded-full transition-all ${
               isRecording
                 ? 'bg-red-500 text-white shadow-lg shadow-red-500/50 animate-pulse'
                 : 'bg-rose-500/30 text-rose-200 hover:bg-rose-500/50'
             } disabled:opacity-50 disabled:cursor-not-allowed`}
-            title="Hold to record"
+            title={isRecording ? 'Click to stop recording' : 'Click to start recording'}
           >
             {isRecording ? <MicOff size={24} /> : <Mic size={24} />}
           </motion.button>
@@ -338,7 +335,7 @@ const ChatInterface = ({ onYukiResponse, sessionId, actorId }) => {
             animate={{ opacity: 1 }}
             className="text-center text-red-400 text-sm mt-2"
           >
-            🎤 Recording... Release to send
+            🎤 Recording... Click to stop
           </motion.p>
         )}
       </div>

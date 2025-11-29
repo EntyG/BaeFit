@@ -8,7 +8,7 @@ const api = axios.create({
 });
 
 /**
- * Chat with Yuki using voice input
+ * Chat with Megumin using voice input
  */
 export async function chatWithVoice(audioBlob, options = {}) {
   const formData = new FormData();
@@ -33,7 +33,7 @@ export async function chatWithVoice(audioBlob, options = {}) {
 }
 
 /**
- * Chat with Yuki using text input
+ * Chat with Megumin using text input
  */
 export async function chatWithText(message, options = {}) {
   const response = await api.post('/api/speech/chat/text', {
@@ -47,7 +47,7 @@ export async function chatWithText(message, options = {}) {
 }
 
 /**
- * Get Yuki's reaction to a meal
+ * Get Megumin's reaction to a meal
  */
 export async function getMealReaction(mealDescription, isHealthy, options = {}) {
   const response = await api.post('/api/speech/meal-reaction', {
@@ -102,7 +102,7 @@ export class YukiWebSocket {
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
-      console.log('🔌 Connected to Yuki');
+      console.log('🔌 Connected to Megumin');
     };
 
     this.ws.onmessage = (event) => {
@@ -119,7 +119,7 @@ export class YukiWebSocket {
     };
 
     this.ws.onclose = () => {
-      console.log('🔌 Disconnected from Yuki');
+      console.log('🔌 Disconnected from Megumin');
     };
   }
 

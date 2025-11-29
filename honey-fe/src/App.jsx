@@ -39,7 +39,7 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Handle Yuki's response (from chat or food reactions)
+  // Handle Megumin's response (from chat or food reactions)
   const handleYukiResponse = useCallback((response) => {
     const { yukiResponse, audio, avatar } = response;
 
@@ -49,17 +49,26 @@ function App() {
       live2dRef.current?.setMood(yukiResponse.mood);
     }
 
-    // Play audio with lip sync
-    if (audio?.url && !isMuted) {
+    // Play audio with lip sync (or fallback to local audio if no audio returned)
+    if (!isMuted) {
       // Stop any current audio
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
 
-      // Construct full audio URL
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const audioUrl = audio.url.startsWith('http') ? audio.url : `${API_BASE}${audio.url}`;
+      // Determine audio source
+      let audioUrl;
+      if (audio?.url) {
+        // Use backend audio if available
+        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        audioUrl = audio.url.startsWith('http') ? audio.url : `${API_BASE}${audio.url}`;
+      } else {
+        // Fallback to local Japanese voice
+        audioUrl = '/japanese-idiot.wav';
+        console.log('⚠️ No audio from backend, using fallback voice');
+      }
+
       const newAudio = new Audio(audioUrl);
       audioRef.current = newAudio;
 
@@ -81,17 +90,20 @@ function App() {
         }, 500);
       };
 
-      newAudio.onerror = () => {
+      newAudio.onerror = (e) => {
+        console.error('Audio playback error:', e);
         setIsSpeaking(false);
         live2dRef.current?.stopLipSync?.();
         live2dRef.current?.stopSpeaking?.();
       };
 
-      newAudio.play().catch(console.error);
+      newAudio.play().catch((err) => {
+        console.error('Audio play failed:', err);
+      });
     }
   }, [isMuted]);
 
-  // Handle food logging - Yuki reacts to food choices
+  // Handle food logging - Megumin reacts to food choices
   const handleFoodLog = useCallback(async (food) => {
     try {
       const message = food.healthy
@@ -107,11 +119,11 @@ function App() {
         handleYukiResponse(response.data);
       }
     } catch (error) {
-      console.error('Error getting Yuki reaction:', error);
+      console.error('Error getting Megumin reaction:', error);
     }
   }, [sessionId, handleYukiResponse]);
 
-  // Handle asking Yuki about food
+  // Handle asking Megumin about food
   const handleAskYuki = useCallback(async (question) => {
     try {
       const response = await chatWithText(question, { sessionId });
@@ -119,7 +131,7 @@ function App() {
         handleYukiResponse(response.data);
       }
     } catch (error) {
-      console.error('Error asking Yuki:', error);
+      console.error('Error asking Megumin:', error);
     }
   }, [sessionId, handleYukiResponse]);
 
@@ -222,7 +234,7 @@ function App() {
               >
                 🎀
               </motion.div>
-              <p className="text-rose-300 animate-pulse text-lg font-medium drop-shadow-lg">Loading Yuki...</p>
+              <p className="text-rose-300 animate-pulse text-lg font-medium drop-shadow-lg">Loading Megumin...</p>
             </motion.div>
           )}
 

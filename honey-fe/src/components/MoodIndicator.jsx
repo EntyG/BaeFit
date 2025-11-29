@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 
 const MOOD_CONFIG = {
+  // Primary emotions
   happy: {
     emoji: '😊',
     color: 'from-yellow-400 to-orange-400',
@@ -50,6 +51,48 @@ const MOOD_CONFIG = {
     emoji: '😌',
     color: 'from-rose-400 to-pink-400',
     label: 'Neutral',
+  },
+  
+  // Additional emotions
+  sleep: {
+    emoji: '😴',
+    color: 'from-indigo-400 to-purple-400',
+    label: 'Sleepy',
+  },
+  sleepy: {
+    emoji: '😴',
+    color: 'from-indigo-400 to-purple-400',
+    label: 'Sleepy',
+  },
+  shy: {
+    emoji: '😳',
+    color: 'from-pink-400 to-red-400',
+    label: 'Shy',
+  },
+  embarrassed: {
+    emoji: '😳',
+    color: 'from-pink-400 to-red-400',
+    label: 'Embarrassed',
+  },
+  blush: {
+    emoji: '☺️',
+    color: 'from-rose-400 to-pink-500',
+    label: 'Blushing',
+  },
+  idle: {
+    emoji: '😌',
+    color: 'from-gray-400 to-slate-400',
+    label: 'Idle',
+  },
+  fun: {
+    emoji: '😄',
+    color: 'from-yellow-400 to-amber-400',
+    label: 'Having Fun',
+  },
+  normal: {
+    emoji: '🙂',
+    color: 'from-blue-300 to-cyan-300',
+    label: 'Normal',
   },
 };
 

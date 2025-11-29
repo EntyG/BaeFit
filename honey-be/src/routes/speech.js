@@ -76,7 +76,7 @@ router.post('/tts', async (req, res, next) => {
 
 /**
  * POST /api/speech/chat
- * Main chat endpoint: User speaks → Yuki responds with voice
+ * Main chat endpoint: User speaks → Megumin responds with voice
  * Full pipeline: STT → LLM Response → TTS → Avatar Data
  */
 router.post('/chat', async (req, res, next) => {
@@ -95,7 +95,7 @@ router.post('/chat', async (req, res, next) => {
     } = req.body;
 
     console.log(`\n🎀 ═══════════════════════════════════════`);
-    console.log(`🎀 Yuki Chat Pipeline Starting...`);
+    console.log(`🎀 Megumin Chat Pipeline Starting...`);
     console.log(`🎀 ═══════════════════════════════════════\n`);
 
     // ═══════════════════════════════════════════════════════════
@@ -113,31 +113,45 @@ router.post('/chat', async (req, res, next) => {
     console.log(`👤 User said: "${sttResult.text}"`);
 
     // ═══════════════════════════════════════════════════════════
-    // STEP 2: Generate Yuki's Response (LLM)
+    // STEP 2: Generate Megumin's Response (LLM)
     // ═══════════════════════════════════════════════════════════
-    console.log('📍 Step 2/4: Yuki is thinking...');
+    console.log('📍 Step 2/4: Megumin is thinking...');
     const llmResult = await groqService.generateCharacterResponse(
       sttResult.text,
       sessionId,
       { context }
     );
 
-    console.log(`🎀 Yuki responds: "${llmResult.text}"`);
+    console.log(`🎀 Megumin responds: "${llmResult.text}"`);
     console.log(`😊 Mood: ${llmResult.mood}`);
 
     // ═══════════════════════════════════════════════════════════
-    // STEP 3: Text-to-Speech (Yuki's response → Anime voice)
+    // STEP 3: Text-to-Speech (Megumin's response → Anime voice)
     // ═══════════════════════════════════════════════════════════
-    console.log('📍 Step 3/4: Generating Yuki\'s voice...');
+    console.log('📍 Step 3/4: Generating Megumin\'s voice...');
     
-    // Map Yuki's mood to Typecast emotion
+    // Map Megumin's mood to Typecast emotion
     const typecastEmotion = mapMoodToEmotion(llmResult.mood);
+    let ttsResult;
+    let useFallback = false;
     
-    const ttsResult = await typecastService.textToSpeech(llmResult.text, {
-      actorId, // Miu Kobayashi or chosen actor
-      emotion: typecastEmotion,
-      tempo: 1.0
-    });
+    try {
+      ttsResult = await typecastService.textToSpeech(llmResult.text, {
+        actorId, // Miu Kobayashi or chosen actor
+        emotion: typecastEmotion,
+        tempo: 1.0
+      });
+    } catch (ttsError) {
+      console.warn('⚠️ TTS failed, client will use fallback audio:', ttsError.message);
+      useFallback = true;
+      const estimatedDuration = Math.max(llmResult.text.length * 80, 1000);
+      ttsResult = {
+        success: false,
+        audioUrl: null,
+        duration: estimatedDuration,
+        lipSync: typecastService.generateLipSyncData(llmResult.text, estimatedDuration)
+      };
+    }
 
     // ═══════════════════════════════════════════════════════════
     // STEP 4: Prepare Avatar Animation Data
@@ -147,7 +161,7 @@ router.post('/chat', async (req, res, next) => {
 
     // Optional: Download audio locally
     let localAudioPath = null;
-    if (downloadAudio && ttsResult.audioUrl) {
+    if (!useFallback && downloadAudio && ttsResult.audioUrl) {
       localAudioPath = await typecastService.downloadAudio(ttsResult.audioUrl);
     }
 
@@ -157,7 +171,7 @@ router.post('/chat', async (req, res, next) => {
     }
 
     console.log(`\n🎀 ═══════════════════════════════════════`);
-    console.log(`🎀 Pipeline Complete! Yuki is ready to speak!`);
+    console.log(`🎀 Pipeline Complete! Megumin is ready to speak!`);
     console.log(`🎀 ═══════════════════════════════════════\n`);
 
     res.json({
@@ -166,14 +180,14 @@ router.post('/chat', async (req, res, next) => {
         // What user said
         userMessage: sttResult.text,
         
-        // Yuki's response
+        // Megumin's response
         yukiResponse: {
           text: llmResult.text,
           mood: llmResult.mood
         },
         
-        // Audio for playback
-        audio: {
+        // Audio for playback (null if fallback needed)
+        audio: useFallback ? null : {
           url: ttsResult.audioUrl,
           localPath: localAudioPath,
           duration: ttsResult.duration
@@ -183,7 +197,8 @@ router.post('/chat', async (req, res, next) => {
         avatar: avatarData,
         
         // Session info
-        sessionId
+        sessionId,
+        useFallbackAudio: useFallback
       }
     });
   } catch (error) {
@@ -193,7 +208,7 @@ router.post('/chat', async (req, res, next) => {
 
 /**
  * POST /api/speech/chat/text
- * Text-only chat: User types → Yuki responds with voice
+ * Text-only chat: User types → Megumin responds with voice
  */
 router.post('/chat/text', async (req, res, next) => {
   try {
@@ -210,19 +225,35 @@ router.post('/chat/text', async (req, res, next) => {
 
     console.log(`\n🎀 Text Chat: "${message}"`);
 
-    // Generate Yuki's response
+    // Generate Megumin's response
     const llmResult = await groqService.generateCharacterResponse(
       message,
       sessionId,
       { context }
     );
 
-    // Generate voice
+    // Generate voice (with fallback handling)
     const typecastEmotion = mapMoodToEmotion(llmResult.mood);
-    const ttsResult = await typecastService.textToSpeech(llmResult.text, {
-      actorId,
-      emotion: typecastEmotion
-    });
+    let ttsResult;
+    let useFallback = false;
+    
+    try {
+      ttsResult = await typecastService.textToSpeech(llmResult.text, {
+        actorId,
+        emotion: typecastEmotion
+      });
+    } catch (ttsError) {
+      console.warn('⚠️ TTS failed, client will use fallback audio:', ttsError.message);
+      // Create minimal result for lip-sync generation
+      useFallback = true;
+      const estimatedDuration = Math.max(llmResult.text.length * 80, 1000);
+      ttsResult = {
+        success: false,
+        audioUrl: null,
+        duration: estimatedDuration,
+        lipSync: typecastService.generateLipSyncData(llmResult.text, estimatedDuration)
+      };
+    }
 
     // Prepare avatar data
     const avatarData = prepareAvatarData(llmResult, ttsResult);
@@ -235,12 +266,13 @@ router.post('/chat/text', async (req, res, next) => {
           text: llmResult.text,
           mood: llmResult.mood
         },
-        audio: {
+        audio: useFallback ? null : {
           url: ttsResult.audioUrl,
           duration: ttsResult.duration
         },
         avatar: avatarData,
-        sessionId
+        sessionId,
+        useFallbackAudio: useFallback
       }
     });
   } catch (error) {
@@ -446,7 +478,7 @@ router.delete('/history/:sessionId', (req, res) => {
 
 /**
  * POST /api/speech/meal-reaction
- * Special endpoint: Yuki reacts to a meal
+ * Special endpoint: Megumin reacts to a meal
  */
 router.post('/meal-reaction', async (req, res, next) => {
   try {
@@ -463,13 +495,13 @@ router.post('/meal-reaction', async (req, res, next) => {
       return res.status(400).json({ error: 'Meal description is required' });
     }
 
-    // Build context for Yuki
+    // Build context for Megumin
     const context = `The user is showing their meal: "${mealDescription}". 
     Health assessment: ${isHealthy ? 'This is a healthy choice!' : 'This could be healthier...'}
     ${calories ? `Calories: ~${calories}` : ''}
     ${nutrients ? `Key nutrients: ${nutrients}` : ''}`;
 
-    // Generate Yuki's reaction
+    // Generate Megumin's reaction
     const message = isHealthy 
       ? "Look at my meal! What do you think?"
       : "I'm about to eat this... don't judge me!";
@@ -480,12 +512,27 @@ router.post('/meal-reaction', async (req, res, next) => {
       { context }
     );
 
-    // Generate voice
+    // Generate voice (with fallback handling)
     const typecastEmotion = mapMoodToEmotion(llmResult.mood);
-    const ttsResult = await typecastService.textToSpeech(llmResult.text, {
-      actorId,
-      emotion: typecastEmotion
-    });
+    let ttsResult;
+    let useFallback = false;
+    
+    try {
+      ttsResult = await typecastService.textToSpeech(llmResult.text, {
+        actorId,
+        emotion: typecastEmotion
+      });
+    } catch (ttsError) {
+      console.warn('⚠️ TTS failed, client will use fallback audio:', ttsError.message);
+      useFallback = true;
+      const estimatedDuration = Math.max(llmResult.text.length * 80, 1000);
+      ttsResult = {
+        success: false,
+        audioUrl: null,
+        duration: estimatedDuration,
+        lipSync: typecastService.generateLipSyncData(llmResult.text, estimatedDuration)
+      };
+    }
 
     const avatarData = prepareAvatarData(llmResult, ttsResult);
 
@@ -498,12 +545,13 @@ router.post('/meal-reaction', async (req, res, next) => {
           text: llmResult.text,
           mood: llmResult.mood
         },
-        audio: {
+        audio: useFallback ? null : {
           url: ttsResult.audioUrl,
           duration: ttsResult.duration
         },
         avatar: avatarData,
-        sessionId
+        sessionId,
+        useFallbackAudio: useFallback
       }
     });
   } catch (error) {
@@ -516,7 +564,7 @@ router.post('/meal-reaction', async (req, res, next) => {
 // ═══════════════════════════════════════════════════════════
 
 /**
- * Map Yuki's mood to Typecast emotion
+ * Map Megumin's mood to Typecast emotion
  */
 function mapMoodToEmotion(mood) {
   const moodMap = {

@@ -1,10 +1,10 @@
-# 🎀 Honey Backend - Yuki Virtual Assistant
+# 🎀 Honey Backend - Megumin Virtual Assistant
 
-Backend server for **Yuki**, an anime-style virtual assistant who motivates healthy eating habits. Built with Groq AI (STT + LLM) and [Typecast.ai](https://typecast.ai/) (TTS).
+Backend server for **Megumin**, an anime-style virtual assistant who motivates healthy eating habits. Built with Groq AI (STT + LLM) and [Typecast.ai](https://typecast.ai/) (TTS).
 
-## 🌸 Meet Yuki
+## 🌸 Meet Megumin
 
-> *Yuki is an interactive anime-style virtual assistant designed to motivate healthy eating habits. She lives in a charming "living room" interface and reacts to the user's dietary choices with personality-driven responses. Using AI, Yuki praises good meals and gently scolds unhealthy ones, all while reflecting mood changes through animated expressions.*
+> *Megumin is an interactive anime-style virtual assistant designed to motivate healthy eating habits. She lives in a charming "living room" interface and reacts to the user's dietary choices with personality-driven responses. Using AI, Megumin praises good meals and gently scolds unhealthy ones, all while reflecting mood changes through animated expressions.*
 
 ## 🔄 Complete Pipeline Flow
 
@@ -20,13 +20,13 @@ Backend server for **Yuki**, an anime-style virtual assistant who motivates heal
                       ▼
 ┌─────────────────────────────────────────────────────────────┐
 │     STEP 2: Groq LLM (Character Response)                   │
-│     Generate Yuki's personality-driven response             │
+│     Generate Megumin's personality-driven response             │
 │     Model: LLaMA 3.3 70B Versatile                          │
 └─────────────────────┬───────────────────────────────────────┘
                       ▼
 ┌─────────────────────────────────────────────────────────────┐
 │     STEP 3: Typecast.ai (Text-to-Speech)                    │
-│     Yuki's response → Anime voice (Miu Kobayashi)           │
+│     Megumin's response → Anime voice (Miu Kobayashi)           │
 │     Returns: Audio URL + Lip-sync data                      │
 └─────────────────────┬───────────────────────────────────────┘
                       ▼
@@ -143,7 +143,7 @@ GET /api/health
 ```
 
 ### 🎀 Main Chat Endpoint (Recommended)
-Talk to Yuki with voice input:
+Talk to Megumin with voice input:
 ```
 POST /api/speech/chat
 Content-Type: multipart/form-data
@@ -183,7 +183,7 @@ Body:
 ```
 
 ### 💬 Text Chat
-Chat with Yuki via text (no voice input):
+Chat with Megumin via text (no voice input):
 ```
 POST /api/speech/chat/text
 Content-Type: application/json
@@ -198,7 +198,7 @@ Body:
 ```
 
 ### 🍽️ Meal Reaction
-Get Yuki's reaction to a meal:
+Get Megumin's reaction to a meal:
 ```
 POST /api/speech/meal-reaction
 Content-Type: application/json
@@ -233,7 +233,7 @@ Connect to `ws://localhost:3001/ws/speech`
 }
 ```
 
-#### Stop Recording & Get Yuki's Response
+#### Stop Recording & Get Megumin's Response
 ```json
 {
   "type": "stop_recording",
@@ -246,7 +246,7 @@ Connect to `ws://localhost:3001/ws/speech`
 ```json
 {
   "type": "chat_text",
-  "message": "Hello Yuki!",
+  "message": "Hello Megumin!",
   "actorId": "miu_kobayashi_id"
 }
 ```
@@ -264,18 +264,18 @@ Connect to `ws://localhost:3001/ws/speech`
 
 ### Response Events
 
-- `connected` - Connection established with Yuki
-- `recording_started` - Yuki is listening
+- `connected` - Connection established with Megumin
+- `recording_started` - Megumin is listening
 - `processing` - Processing stage (stt/thinking/tts/complete)
 - `user_message` - Transcribed user message
-- `yuki_thinking` - Yuki's response text (before voice)
+- `yuki_thinking` - Megumin's response text (before voice)
 - `yuki_response` - Complete response with audio and avatar data
-- `meal_reaction` - Yuki's meal reaction
+- `meal_reaction` - Megumin's meal reaction
 - `error` - Error occurred
 
-## 😊 Yuki's Moods
+## 😊 Megumin's Moods
 
-Yuki expresses different moods based on the conversation:
+Megumin expresses different moods based on the conversation:
 
 | Mood | Trigger | Avatar Expression |
 |------|---------|-------------------|
@@ -360,8 +360,8 @@ honey-be/
 │   ├── routes/
 │   │   └── speech.js            # REST API routes
 │   ├── services/
-│   │   ├── groqService.js       # Groq STT + LLM (Yuki's brain)
-│   │   └── typecastService.js   # Typecast TTS (Yuki's voice)
+│   │   ├── groqService.js       # Groq STT + LLM (Megumin's brain)
+│   │   └── typecastService.js   # Typecast TTS (Megumin's voice)
 │   └── websocket/
 │       └── speechHandler.js     # Real-time chat handler
 ├── public/audio/                # Generated audio cache
@@ -385,13 +385,13 @@ honey-be/
 ```
 User: "I just had a burger and fries for lunch"
 
-Yuki (concerned): [concerned] Oh no~ A burger and fries? 
+Megumin (concerned): [concerned] Oh no~ A burger and fries? 
 That's a lot of grease, you know... I'm a bit worried about you! 
 Maybe try adding a side salad next time? Ganbatte!
 
 User: "Okay, I'll have a salad for dinner"
 
-Yuki (happy): [happy] Yay~! That's what I like to hear! 
+Megumin (happy): [happy] Yay~! That's what I like to hear! 
 A salad for dinner sounds perfect! I knew you could make better choices! 
 I'm so proud of you! ✨
 ```

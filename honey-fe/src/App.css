@@ -1,4 +1,4 @@
-/* BaeFit - Yuki's Kitchen Nutrition App */
+/* BaeFit - Megumin's Kitchen Nutrition App */
 
 /* Fonts - Playful but readable */
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Klee+One&display=swap');
@@ -83,7 +83,7 @@ html, body, #root {
   grid-template-columns: 340px 1fr 400px;
   gap: 20px;
   height: calc(100vh - 72px);
-  padding: 20px;
+  padding: 0px;
   position: relative;
   z-index: 10;
 }
@@ -287,8 +287,8 @@ html, body, #root {
 
 .mood-indicator {
   position: absolute;
-  top: 16px;
-  left: 50%;
+  top: 30px;
+  left: 70%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -492,9 +492,9 @@ input, textarea {
 input::placeholder, textarea::placeholder {
   font-family: inherit;
 }
-
 /* Live2D canvas */
 canvas {
   display: block;
 }
+
 

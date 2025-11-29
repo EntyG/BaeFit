@@ -2,8 +2,9 @@ import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle, useSta
 // Import from our initialization module to ensure proper setup
 import { PIXI, Live2DModel } from '../utils/live2d-init';
 
-// Motion mapping
+// Motion mapping - Extended with all available emotions
 const MOOD_TO_MOTION = {
+  // Primary moods
   happy: 'motions/02_fun.motion3.json',
   excited: 'motions/I_fun_motion_01.motion3.json',
   concerned: 'motions/04_sad.motion3.json',
@@ -14,9 +15,18 @@ const MOOD_TO_MOTION = {
   sad: 'motions/I_f_sad__motion_01.motion3.json',
   angry: 'motions/I_angry_motion_01.motion3.json',
   neutral: 'motions/00_nomal.motion3.json',
+  
+  // Additional emotions from folder
   sleep: 'motions/05_sleep.motion3.json',
+  sleepy: 'motions/05_sleep.motion3.json',
   shy: 'motions/07_tere.motion3.json',
+  embarrassed: 'motions/07_tere.motion3.json',
+  blush: 'motions/07_tere.motion3.json',
   idle: 'motions/I_idling_motion_01.motion3.json',
+  normal: 'motions/00_nomal.motion3.json',
+  fun: 'motions/02_fun.motion3.json',
+  repeat: 'motions/I_repeat_motion_01.motion3.json',
+  tojime: 'motions/06_tojime.motion3.json', // Closing eyes/bashful
 };
 
 const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady }, ref) => {
@@ -225,8 +235,8 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
         setDebugInfo('Setting up model...');
         console.log('📦 Model loaded, setting up...');
         
-        // Setup model
-        model.scale.set(0.25);
+        // Setup model - Smaller scale for better fit
+        model.scale.set(0.2);  // Reduced from 0.25 to 0.2
         model.anchor.set(0.5, 0.5);
         model.x = app.screen.width / 2;
         model.y = app.screen.height / 2 + 50;
@@ -249,7 +259,7 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
           console.warn('Could not play initial motion:', e);
         }
 
-        console.log('✅ Yuki loaded successfully!');
+        console.log('✅ Megumin loaded successfully!');
         setLoading(false);
         setError(null);
         setDebugInfo('');
@@ -277,7 +287,7 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
       } catch (err) {
         console.error('❌ Live2D Error:', err);
         if (mounted) {
-          setError(err.message || 'Failed to load Yuki');
+          setError(err.message || 'Failed to load Megumin');
           setLoading(false);
           setDebugInfo('');
         }
@@ -296,21 +306,109 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
     };
   }, [onReady, stopMouthAnimation, stopLipSync]);
 
-  // Mood changes
+  // Mood changes - Play motion AND adjust facial expressions
   useEffect(() => {
     if (modelRef.current && MOOD_TO_MOTION[mood]) {
       console.log(`🎭 Changing mood to: ${mood}`);
+      
+      // Play the motion animation
       modelRef.current.motion(MOOD_TO_MOTION[mood]).catch(console.warn);
+      
+      // Also apply facial expression parameters based on mood
+      applyMoodExpression(mood);
     }
   }, [mood]);
+
+  // Apply facial expression parameters for different moods
+  const applyMoodExpression = useCallback((currentMood) => {
+    try {
+      if (!modelRef.current?.internalModel?.coreModel) return;
+
+      const model = modelRef.current.internalModel.coreModel;
+      const params = model.parameters || model._model?.parameters;
+      
+      if (!params || !params.ids || !params.values) return;
+
+      // Helper to set parameter value
+      const setParam = (paramNames, value) => {
+        for (const paramName of paramNames) {
+          const idx = params.ids.indexOf(paramName);
+          if (idx !== -1) {
+            params.values[idx] = value;
+            break;
+          }
+        }
+      };
+
+      // Reset to neutral first
+      setParam(['ParamEyeLOpen', 'PARAM_EYE_L_OPEN'], 1);
+      setParam(['ParamEyeROpen', 'PARAM_EYE_R_OPEN'], 1);
+      setParam(['ParamBrowLY', 'PARAM_BROW_L_Y'], 0);
+      setParam(['ParamBrowRY', 'PARAM_BROW_R_Y'], 0);
+
+      // Apply mood-specific expressions
+      switch (currentMood) {
+        case 'happy':
+        case 'excited':
+        case 'fun':
+          setParam(['ParamEyeLOpen', 'PARAM_EYE_L_OPEN'], 0.8);
+          setParam(['ParamEyeROpen', 'PARAM_EYE_R_OPEN'], 0.8);
+          setParam(['ParamBrowLY', 'PARAM_BROW_L_Y'], 0.5);
+          setParam(['ParamBrowRY', 'PARAM_BROW_R_Y'], 0.5);
+          break;
+        
+        case 'surprised':
+          setParam(['ParamEyeLOpen', 'PARAM_EYE_L_OPEN'], 1.2);
+          setParam(['ParamEyeROpen', 'PARAM_EYE_R_OPEN'], 1.2);
+          setParam(['ParamBrowLY', 'PARAM_BROW_L_Y'], 1);
+          setParam(['ParamBrowRY', 'PARAM_BROW_R_Y'], 1);
+          break;
+        
+        case 'sad':
+        case 'concerned':
+          setParam(['ParamEyeLOpen', 'PARAM_EYE_L_OPEN'], 0.6);
+          setParam(['ParamEyeROpen', 'PARAM_EYE_R_OPEN'], 0.6);
+          setParam(['ParamBrowLY', 'PARAM_BROW_L_Y'], -0.5);
+          setParam(['ParamBrowRY', 'PARAM_BROW_R_Y'], -0.5);
+          break;
+        
+        case 'angry':
+        case 'pouty':
+          setParam(['ParamEyeLOpen', 'PARAM_EYE_L_OPEN'], 0.5);
+          setParam(['ParamEyeROpen', 'PARAM_EYE_R_OPEN'], 0.5);
+          setParam(['ParamBrowLY', 'PARAM_BROW_L_Y'], -0.8);
+          setParam(['ParamBrowRY', 'PARAM_BROW_R_Y'], -0.8);
+          break;
+        
+        case 'shy':
+        case 'embarrassed':
+        case 'blush':
+          setParam(['ParamEyeLOpen', 'PARAM_EYE_L_OPEN'], 0.7);
+          setParam(['ParamEyeROpen', 'PARAM_EYE_R_OPEN'], 0.7);
+          break;
+        
+        case 'sleepy':
+        case 'sleep':
+          setParam(['ParamEyeLOpen', 'PARAM_EYE_L_OPEN'], 0.3);
+          setParam(['ParamEyeROpen', 'PARAM_EYE_R_OPEN'], 0.3);
+          break;
+        
+        default:
+          // neutral, thinking, encouraging, etc.
+          break;
+      }
+    } catch (e) {
+      console.warn('Expression animation error:', e);
+    }
+  }, []);
 
   // Speaking state
   useEffect(() => {
     if (isSpeaking) {
-      console.log('🗣️ Yuki started speaking');
+      console.log('🗣️ Megumin started speaking');
       startMouthAnimation();
     } else {
-      console.log('🤐 Yuki stopped speaking');
+      console.log('🤐 Megumin stopped speaking');
       stopMouthAnimation();
       stopLipSync();
     }
@@ -321,7 +419,7 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
       {loading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-gradient-to-b from-rose-950/40 to-purple-950/40 backdrop-blur-sm rounded-2xl">
           <div className="text-5xl mb-4 animate-bounce">🎀</div>
-          <p className="text-rose-300 animate-pulse text-lg">Loading Yuki...</p>
+          <p className="text-rose-300 animate-pulse text-lg">Loading Megumin...</p>
           {debugInfo && (
             <p className="text-rose-400/60 text-sm mt-2">{debugInfo}</p>
           )}
@@ -331,7 +429,7 @@ const Live2DCanvas = forwardRef(({ mood = 'neutral', isSpeaking = false, onReady
       {error && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-red-950/90 rounded-2xl p-6">
           <div className="text-4xl mb-4">😢</div>
-          <p className="text-red-300 text-center mb-2 font-medium">Failed to Load Yuki</p>
+          <p className="text-red-300 text-center mb-2 font-medium">Failed to Load Megumin</p>
           <p className="text-red-400/80 text-sm text-center max-w-md mb-4">{error}</p>
           <div className="mt-2 p-3 bg-black/30 rounded-lg text-left max-w-md">
             <p className="text-xs text-red-300/60 font-mono mb-2">Troubleshooting:</p>

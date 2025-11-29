@@ -1,16 +1,16 @@
-# 🍯 BaeFit - Yuki Virtual Assistant
+# 🍯 BaeFit - Megumin Virtual Assistant
 
-A complete anime-style virtual assistant application featuring **Yuki**, a Live2D character who motivates healthy eating habits through voice and text chat.
+A complete anime-style virtual assistant application featuring **Megumin**, a Live2D character who motivates healthy eating habits through voice and text chat.
 
 ## 🌸 Features
 
-- 🎀 **Live2D Avatar** - Animated Yuki character with mood-based expressions
+- 🎀 **Live2D Avatar** - Animated Megumin character with mood-based expressions
 - 🎤 **Voice Chat** - Real-time speech-to-text using Groq Whisper
-- 🤖 **AI Responses** - Groq LLaMA generates Yuki's personality-driven responses
+- 🤖 **AI Responses** - Groq LLaMA generates Megumin's personality-driven responses
 - 🔊 **Anime Voice** - Typecast.ai TTS with Miu Kobayashi voice
 - 💬 **Text Chat** - Alternative text-based chat interface
 - 🌙 **Beautiful UI** - Cozy living room theme with day/night modes
-- 🎭 **Dynamic Expressions** - Yuki reacts with different moods (happy, concerned, pouty, etc.)
+- 🎭 **Dynamic Expressions** - Megumin reacts with different moods (happy, concerned, pouty, etc.)
 
 ## 📁 Project Structure
 
@@ -78,11 +78,11 @@ npm run dev
 
 Frontend runs on: http://localhost:5173
 
-### Step 3: Chat with Yuki! 🎀
+### Step 3: Chat with Megumin! 🎀
 
 1. Open http://localhost:5173
 2. **Hold** the 🎤 button and speak
-3. Yuki will respond with voice and animation!
+3. Megumin will respond with voice and animation!
 
 ## 🔄 Complete Pipeline
 
@@ -91,7 +91,7 @@ User Speech (Audio)
       ↓
 Groq Whisper (STT) → Text
       ↓
-Groq LLaMA (LLM) → Yuki's Response
+Groq LLaMA (LLM) → Megumin's Response
       ↓
 Typecast.ai (TTS) → Anime Voice
       ↓
@@ -119,7 +119,7 @@ Live2D Avatar → Animated Expression
 - **Settings**: Click gear icon
 - **Day/Night**: Toggle moon/sun icon
 
-## 🎭 Yuki's Moods
+## 🎭 Megumin's Moods
 
 | Mood | Trigger | Expression |
 |------|---------|------------|
@@ -207,7 +207,7 @@ VITE_API_URL=http://localhost:3001
 1. ✅ Set up API keys
 2. ✅ Start backend and frontend
 3. ✅ Test voice chat
-4. ✅ Customize Yuki's personality (edit `groqService.js`)
+4. ✅ Customize Megumin's personality (edit `groqService.js`)
 5. ✅ Add more meal reactions
 6. ✅ Deploy to production
 

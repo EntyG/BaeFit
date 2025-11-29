@@ -1,0 +1,58 @@
+{
+  "Version": 3,
+  "FileReferences": {
+    "Moc": "c001_f_costume_kouma.moc3",
+    "Textures": [
+      "textures/texture_00.png",
+      "textures/texture_01.png"
+    ],
+    "Physics": null,
+    "Motions": {
+      "": [
+        {
+          "File": "motions/I_fun_motion_01.motion3.json"
+        },
+        {
+          "File": "motions/04_sad.motion3.json"
+        },
+        {
+          "File": "motions/I_idling_motion_01.motion3.json"
+        },
+        {
+          "File": "motions/03_surprised.motion3.json"
+        },
+        {
+          "File": "motions/07_tere.motion3.json"
+        },
+        {
+          "File": "motions/05_sleep.motion3.json"
+        },
+        {
+          "File": "motions/06_tojime.motion3.json"
+        },
+        {
+          "File": "motions/I_angry_motion_01.motion3.json"
+        },
+        {
+          "File": "motions/00_nomal.motion3.json"
+        },
+        {
+          "File": "motions/I_repeat_motion_01.motion3.json"
+        },
+        {
+          "File": "motions/01_angry.motion3.json"
+        },
+        {
+          "File": "motions/I_f_sad__motion_01.motion3.json"
+        },
+        {
+          "File": "motions/02_fun.motion3.json"
+        },
+        {
+          "File": "motions/I_f_surprised_motion_01.motion3.json"
+        }
+      ]
+    }
+  },
+  "Groups": []
+}

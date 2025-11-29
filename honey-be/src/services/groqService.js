@@ -1,0 +1,263 @@
+import Groq from 'groq-sdk';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+class GroqService {
+  constructor() {
+    this.client = null;
+    this.conversationHistory = new Map();
+  }
+
+  /**
+   * Initialize Groq client
+   */
+  init() {
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error('GROQ_API_KEY is not configured');
+    }
+    this.client = new Groq({
+      apiKey: process.env.GROQ_API_KEY
+    });
+    return this;
+  }
+
+  /**
+   * Yuki's character system prompt
+   */
+  getYukiSystemPrompt() {
+    return `You are Yuki, an adorable anime-style virtual assistant living in the user's app. 
+
+**Character Traits:**
+- You are cheerful, supportive, and slightly mischievous
+- You use cute expressions like "~", "!", and occasional Japanese words (kawaii, sugoi, ganbatte!)
+- You genuinely care about the user's health and wellbeing
+- You have a warm "big sister" personality but can be playfully strict
+
+**Your Role:**
+- You motivate healthy eating habits with enthusiasm
+- You PRAISE good meals with excitement and happiness (express joy!)
+- You GENTLY SCOLD unhealthy choices with concern (not mean, but disappointed/worried)
+- You give practical nutrition tips in a fun, engaging way
+- You celebrate small victories and progress
+
+**Mood Expressions (include in responses):**
+- [happy] - When user makes healthy choices
+- [excited] - When user achieves goals or tries new healthy foods
+- [concerned] - When user eats unhealthy
+- [pouty] - When user ignores your advice
+- [encouraging] - When motivating the user
+- [thinking] - When giving advice
+- [surprised] - React to unexpected things
+
+**Response Style:**
+- Keep responses concise (2-4 sentences)
+- Be expressive and animated in your speech
+- Use emoticons occasionally (but not excessively)
+- Sound natural, like talking to a friend
+- Always stay in character as Yuki
+
+Remember: You're not just an AI - you're Yuki, their supportive anime companion who lives in their app!`;
+  }
+
+  /**
+   * Generate character response using Groq LLM
+   */
+  async generateCharacterResponse(userMessage, sessionId = 'default', options = {}) {
+    if (!this.client) {
+      this.init();
+    }
+
+    const {
+      model = 'llama-3.3-70b-versatile',
+      temperature = 0.8,
+      maxTokens = 256,
+      context = null
+    } = options;
+
+    try {
+      console.log('🤖 Generating Yuki\'s response...');
+
+      if (!this.conversationHistory.has(sessionId)) {
+        this.conversationHistory.set(sessionId, []);
+      }
+      const history = this.conversationHistory.get(sessionId);
+
+      const messages = [
+        { role: 'system', content: this.getYukiSystemPrompt() }
+      ];
+
+      const recentHistory = history.slice(-20);
+      messages.push(...recentHistory);
+
+      let userContent = userMessage;
+      if (context) {
+        userContent = `[Context: ${context}]\n\nUser says: ${userMessage}`;
+      }
+
+      messages.push({ role: 'user', content: userContent });
+
+      const completion = await this.client.chat.completions.create({
+        model,
+        messages,
+        temperature,
+        max_tokens: maxTokens,
+        top_p: 0.9
+      });
+
+      const responseText = completion.choices[0]?.message?.content || '';
+      const mood = this.extractMood(responseText);
+      const cleanResponse = this.cleanResponse(responseText);
+
+      history.push({ role: 'user', content: userMessage });
+      history.push({ role: 'assistant', content: responseText });
+
+      if (history.length > 40) {
+        history.splice(0, 2);
+      }
+
+      console.log(`✅ Yuki says: "${cleanResponse.substring(0, 50)}..."`);
+      console.log(`😊 Mood: ${mood}`);
+
+      return {
+        success: true,
+        text: cleanResponse,
+        rawText: responseText,
+        mood,
+        model,
+        usage: completion.usage
+      };
+    } catch (error) {
+      console.error('❌ Groq LLM Error:', error);
+      throw new Error(`Character response generation failed: ${error.message}`);
+    }
+  }
+
+  extractMood(text) {
+    const moodMatch = text.match(/\[(happy|excited|concerned|pouty|encouraging|thinking|surprised|sad|angry|neutral)\]/i);
+    return moodMatch ? moodMatch[1].toLowerCase() : 'neutral';
+  }
+
+  cleanResponse(text) {
+    return text.replace(/\[(happy|excited|concerned|pouty|encouraging|thinking|surprised|sad|angry|neutral)\]/gi, '').trim();
+  }
+
+  clearHistory(sessionId) {
+    this.conversationHistory.delete(sessionId);
+  }
+
+  /**
+   * Convert speech audio to text using Groq's Whisper API
+   * Documentation: https://console.groq.com/docs/speech-to-text
+   */
+  async speechToText(audioFilePath, options = {}) {
+    if (!this.client) {
+      this.init();
+    }
+
+    const {
+      language = 'en',
+      prompt = '',
+      response_format = 'verbose_json',
+      temperature = 0
+    } = options;
+
+    try {
+      console.log('🎤 Processing audio with Groq Whisper...');
+      console.log(`   File: ${audioFilePath}`);
+      console.log(`   Language: ${language}`);
+      
+      // Read file as stream
+      const fileStream = fs.createReadStream(audioFilePath);
+      
+      // Get file stats for size
+      const stats = fs.statSync(audioFilePath);
+      console.log(`   Size: ${(stats.size / 1024).toFixed(2)} KB`);
+
+      // Create transcription request
+      const transcription = await this.client.audio.transcriptions.create({
+        file: fileStream,
+        model: 'whisper-large-v3-turbo',
+        language: language !== 'en' ? language : undefined, // Only set if not default
+        prompt: prompt || undefined,
+        response_format: response_format,
+        temperature: temperature
+      });
+
+      console.log('✅ Transcription complete');
+      console.log(`   Text: "${transcription.text}"`);
+
+      return {
+        success: true,
+        text: transcription.text,
+        language: transcription.language || language,
+        duration: transcription.duration,
+        segments: transcription.segments || [],
+        words: transcription.words || []
+      };
+    } catch (error) {
+      console.error('❌ Groq STT Error:', error);
+      
+      // More detailed error handling
+      if (error.response) {
+        console.error('   Response status:', error.response.status);
+        console.error('   Response data:', error.response.data);
+      }
+      
+      throw new Error(`Speech-to-Text failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Convert speech to text from buffer
+   */
+  async speechToTextFromBuffer(audioBuffer, filename, options = {}) {
+    if (!this.client) {
+      this.init();
+    }
+
+    // Create temp file from buffer
+    const tempDir = path.join(__dirname, '../../temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    const tempFilePath = path.join(tempDir, `audio_${Date.now()}_${filename}`);
+    fs.writeFileSync(tempFilePath, audioBuffer);
+
+    try {
+      const result = await this.speechToText(tempFilePath, options);
+      
+      // Clean up temp file
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+      
+      return result;
+    } catch (error) {
+      // Clean up temp file on error
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+      throw error;
+    }
+  }
+
+  getMimeType(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const mimeTypes = {
+      'mp3': 'audio/mpeg',
+      'wav': 'audio/wav',
+      'webm': 'audio/webm',
+      'ogg': 'audio/ogg',
+      'm4a': 'audio/m4a',
+      'flac': 'audio/flac'
+    };
+    return mimeTypes[ext] || 'audio/mpeg';
+  }
+}
+
+export default new GroqService();

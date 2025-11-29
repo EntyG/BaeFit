@@ -1,10 +1,27 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>honey-fe</title>
+    <meta name="description" content="BaeFit - Your anime virtual assistant for healthy eating habits" />
+    <meta name="theme-color" content="#1a0a2e" />
+    <title>🍯 BaeFit - Chat with Yuki</title>
+    
+    <!-- Cubism 4 Core SDK (required for .moc3 models) - MUST load FIRST -->
+    <script src="/live2dcubismcore.min.js"></script>
+    <script>
+      // Verify Cubism Core loaded
+      window.addEventListener('DOMContentLoaded', () => {
+        if (typeof Live2DCubismCore === 'undefined') {
+          console.error('❌ Live2DCubismCore failed to load!');
+          document.getElementById('root').innerHTML = 
+            '<div style="color: red; padding: 20px;">Error: Live2D Cubism Core SDK failed to load. Please refresh the page.</div>';
+        } else {
+          console.log('✅ Live2DCubismCore loaded successfully:', Live2DCubismCore.Version);
+        }
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

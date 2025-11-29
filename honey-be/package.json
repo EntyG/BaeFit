@@ -1,0 +1,27 @@
+{
+  "name": "honey-be",
+  "version": "1.0.0",
+  "description": "Backend for anime avatar speech pipeline - Groq STT + Typecast TTS",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "find-voices": "node scripts/find-voices.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "express-fileupload": "^1.5.1",
+    "form-data": "^4.0.0",
+    "groq-sdk": "^0.8.0",
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
+

@@ -53,7 +53,10 @@ function App() {
         audioRef.current = null;
       }
 
-      const newAudio = new Audio(audio.url);
+      // Construct full audio URL (backend returns relative path like /audio/xxx.mp3)
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const audioUrl = audio.url.startsWith('http') ? audio.url : `${API_BASE}${audio.url}`;
+      const newAudio = new Audio(audioUrl);
       audioRef.current = newAudio;
 
       newAudio.onplay = () => {

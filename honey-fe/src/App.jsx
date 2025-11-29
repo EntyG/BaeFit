@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Moon, Sun, Volume2, VolumeX } from 'lucide-react';
+import { Settings, Moon, Sun, Volume2, VolumeX, Languages } from 'lucide-react';
 import Live2DCanvas from './components/Live2DCanvas';
 import ChatInterface from './components/ChatInterface';
 import FoodPanel from './components/FoodPanel';
@@ -16,12 +16,14 @@ function App() {
   const [isMuted, setIsMuted] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [backendStatus, setBackendStatus] = useState('checking');
+  const [language, setLanguage] = useState('en'); // 'en' or 'ja'
   const [sessionId] = useState(() => `session_${Date.now()}`);
   const [dailyGoal] = useState(2000);
   
   const live2dRef = useRef(null);
   const audioRef = useRef(null);
   const chatRef = useRef(null);
+  const foodPanelRef = useRef(null);
 
   // Check backend status
   useEffect(() => {
@@ -39,6 +41,38 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Detect food names in Megumin's response and add them if requested
+  const detectAndAddFoods = useCallback((text) => {
+    if (!foodPanelRef.current) return [];
+    
+    // Check if user asked to add food (keywords)
+    const addKeywords = ['add', 'adding', 'added', 'log', 'logging', 'here', 'suggest', 'recommend', 'try'];
+    const textLower = text.toLowerCase();
+    const shouldAdd = addKeywords.some(kw => textLower.includes(kw));
+    
+    if (!shouldAdd) return [];
+    
+    // Get food database and try to match foods mentioned in the response
+    const foodDb = foodPanelRef.current.getFoodDatabase?.() || [];
+    const addedFoods = [];
+    
+    for (const food of foodDb) {
+      // Check if food name appears in the response
+      if (textLower.includes(food.name.toLowerCase())) {
+        const result = foodPanelRef.current.addFoodByName(food.name);
+        if (result.success) {
+          addedFoods.push(food.name);
+        }
+      }
+    }
+    
+    if (addedFoods.length > 0) {
+      console.log(`🍽️ Megumin added foods: ${addedFoods.join(', ')}`);
+    }
+    
+    return addedFoods;
+  }, []);
+
   // Handle Megumin's response (from chat or food reactions)
   const handleYukiResponse = useCallback((response) => {
     const { yukiResponse, audio, avatar } = response;
@@ -47,6 +81,11 @@ function App() {
     if (yukiResponse?.mood) {
       setCurrentMood(yukiResponse.mood);
       live2dRef.current?.setMood(yukiResponse.mood);
+    }
+
+    // Check if Megumin mentioned any foods to add
+    if (yukiResponse?.text) {
+      detectAndAddFoods(yukiResponse.text);
     }
 
     // Play audio with lip sync (or fallback to local audio if no audio returned)
@@ -64,9 +103,9 @@ function App() {
         const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
         audioUrl = audio.url.startsWith('http') ? audio.url : `${API_BASE}${audio.url}`;
       } else {
-        // Fallback to local Japanese voice
-        audioUrl = '/japanese-idiot.wav';
-        console.log('⚠️ No audio from backend, using fallback voice');
+        // Fallback to local voice based on language setting
+        audioUrl = language === 'ja' ? '/japanese-voice.wav' : '/japanese-idiot.wav';
+        console.log(`⚠️ No audio from backend, using fallback voice (${language})`);
       }
 
       const newAudio = new Audio(audioUrl);
@@ -101,7 +140,7 @@ function App() {
         console.error('Audio play failed:', err);
       });
     }
-  }, [isMuted]);
+  }, [isMuted, language, detectAndAddFoods]);
 
   // Handle food logging - Megumin reacts to food choices
   const handleFoodLog = useCallback(async (food) => {
@@ -166,6 +205,16 @@ function App() {
             {backendStatus === 'connected' ? 'Online' : 'Offline'}
           </div>
 
+          {/* Language Toggle */}
+          <button
+            onClick={() => setLanguage(language === 'en' ? 'ja' : 'en')}
+            className="icon-btn language-btn"
+            title={`Language: ${language === 'en' ? 'English' : 'Japanese'}`}
+          >
+            <Languages size={20} />
+            <span className="language-badge">{language.toUpperCase()}</span>
+          </button>
+
           {/* Mute Toggle */}
           <button
             onClick={() => setIsMuted(!isMuted)}
@@ -205,6 +254,7 @@ function App() {
           className="panel"
         >
           <FoodPanel
+            ref={foodPanelRef}
             onFoodLog={handleFoodLog}
             onAskYuki={handleAskYuki}
             dailyGoal={dailyGoal}

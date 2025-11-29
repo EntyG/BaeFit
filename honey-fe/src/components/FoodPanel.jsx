@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
@@ -14,8 +14,17 @@ import {
   Search,
   Clock,
   Star,
-  Utensils
+  Utensils,
+  ListPlus,
+  RefreshCw
 } from 'lucide-react';
+
+// Helper to format numbers with 1 decimal place precision
+const formatNum = (num) => {
+  if (num === 0) return '0';
+  if (Number.isInteger(num)) return num.toString();
+  return Number(num.toFixed(1)).toString();
+};
 
 // Sample food database with nutrition info
 const FOOD_DATABASE = [
@@ -65,12 +74,13 @@ const MEAL_SUGGESTIONS = {
   ],
 };
 
-const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
+const FoodPanel = forwardRef(({ onFoodLog, onAskYuki, dailyGoal = 2000 }, ref) => {
   const [todaysFoods, setTodaysFoods] = useState([]);
   const [showAddFood, setShowAddFood] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [currentMealType, setCurrentMealType] = useState('lunch');
+  const [recentlyAdded, setRecentlyAdded] = useState([]);
 
   // Calculate current meal type based on time
   useEffect(() => {
@@ -101,18 +111,64 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
   });
 
   // Add food to today's log
-  const addFood = (food) => {
+  const addFood = (food, silent = false) => {
+    // Use a composite unique id to avoid React key collisions when adding
+    // multiple items in the same millisecond (e.g. "Add all", meal plan, etc.)
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
     const newEntry = {
       ...food,
-      logId: Date.now(),
+      logId: uniqueId,
       time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
     };
     setTodaysFoods(prev => [...prev, newEntry]);
     setShowAddFood(false);
     
-    // Notify parent for Megumin's reaction
-    onFoodLog?.(newEntry);
+    // Visual feedback - highlight recently added
+    setRecentlyAdded(prev => [...prev, newEntry.logId]);
+    setTimeout(() => {
+      setRecentlyAdded(prev => prev.filter(id => id !== newEntry.logId));
+    }, 3000);
+    
+    // Notify parent for Megumin's reaction (unless silent - from chat suggestion)
+    if (!silent) {
+      onFoodLog?.(newEntry);
+    }
+    
+    return newEntry;
   };
+
+  // Add food by name (called from parent when Megumin suggests food)
+  const addFoodByName = (foodName) => {
+    // Try exact match first
+    let food = FOOD_DATABASE.find(f => 
+      f.name.toLowerCase() === foodName.toLowerCase()
+    );
+    
+    // Try partial match if no exact match
+    if (!food) {
+      food = FOOD_DATABASE.find(f => 
+        f.name.toLowerCase().includes(foodName.toLowerCase()) ||
+        foodName.toLowerCase().includes(f.name.toLowerCase())
+      );
+    }
+    
+    if (food) {
+      const entry = addFood(food, true); // Silent add
+      return { success: true, food: entry };
+    }
+    return { success: false, foodName };
+  };
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    addFoodByName,
+    addFoods: (foodNames) => {
+      const results = foodNames.map(name => addFoodByName(name));
+      return results;
+    },
+    getFoodDatabase: () => FOOD_DATABASE,
+  }));
 
   // Remove food from log
   const removeFood = (logId) => {
@@ -143,6 +199,52 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
     });
   };
 
+  // Generate healthy meal plan for the day
+  const [showMealPlan, setShowMealPlan] = useState(false);
+  const [mealPlan, setMealPlan] = useState(null);
+
+  const generateMealPlan = () => {
+    const healthyFoods = FOOD_DATABASE.filter(f => f.healthy);
+    
+    const getRandomFoods = (count, exclude = []) => {
+      const available = healthyFoods.filter(f => !exclude.includes(f.id));
+      const selected = [];
+      for (let i = 0; i < count && available.length > 0; i++) {
+        const idx = Math.floor(Math.random() * available.length);
+        selected.push(available.splice(idx, 1)[0]);
+      }
+      return selected;
+    };
+
+    const breakfast = getRandomFoods(3);
+    const lunch = getRandomFoods(3, breakfast.map(f => f.id));
+    const dinner = getRandomFoods(3, [...breakfast, ...lunch].map(f => f.id));
+    const snacks = getRandomFoods(2, [...breakfast, ...lunch, ...dinner].map(f => f.id));
+
+    const plan = { breakfast, lunch, dinner, snacks };
+    
+    // Calculate totals
+    const allFoods = [...breakfast, ...lunch, ...dinner, ...snacks];
+    const totals = allFoods.reduce((acc, food) => ({
+      calories: acc.calories + food.calories,
+      protein: acc.protein + food.protein,
+      carbs: acc.carbs + food.carbs,
+      fat: acc.fat + food.fat,
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+    setMealPlan({ ...plan, totals });
+    setShowMealPlan(true);
+  };
+
+  // Add entire meal plan to today's foods
+  const addMealPlan = () => {
+    if (!mealPlan) return;
+    const allFoods = [...mealPlan.breakfast, ...mealPlan.lunch, ...mealPlan.dinner, ...mealPlan.snacks];
+    allFoods.forEach(food => addFood(food));
+    setShowMealPlan(false);
+    onAskYuki?.("I just added a healthy meal plan for today! What do you think?");
+  };
+
   const categories = [
     { id: 'all', label: 'All', icon: Utensils },
     { id: 'protein', label: 'Protein', icon: Beef },
@@ -154,9 +256,9 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-emerald-950/40 to-teal-950/40 backdrop-blur-md rounded-2xl border border-emerald-500/20 overflow-hidden">
       {/* Header with Daily Progress */}
-      <div className="px-4 py-3 bg-emerald-950/50 border-b border-emerald-500/20">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-emerald-200 font-semibold flex items-center gap-2">
+      <div className="px-6 py-5 bg-emerald-950/50 border-b border-emerald-500/20">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-emerald-200 font-semibold flex items-center gap-2 text-base">
             <span className="text-xl">🥗</span>
             Today's Nutrition
           </h2>
@@ -173,7 +275,7 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
         </div>
 
         {/* Calorie Progress Bar */}
-        <div className="relative">
+        <div className="relative mt-1 space-y-2">
           <div className="flex justify-between text-xs mb-1">
             <span className="text-emerald-300 flex items-center gap-1">
               <Flame size={12} /> {dailyTotals.calories} kcal
@@ -194,24 +296,24 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
         </div>
 
         {/* Macro Summary */}
-        <div className="flex gap-3 mt-3">
-          <div className="flex-1 text-center p-2 bg-emerald-900/30 rounded-lg">
-            <div className="text-xs text-emerald-400/70 flex items-center justify-center gap-1">
-              <Beef size={10} /> Protein
+        <div className="flex gap-3 mt-4">
+          <div className="flex-1 text-center py-3 px-3 bg-emerald-900/30 rounded-lg">
+            <div className="text-xs text-emerald-400/70 flex items-center justify-center gap-1 mb-1">
+              <Beef size={11} /> Protein
             </div>
-            <div className="text-sm font-semibold text-emerald-200">{dailyTotals.protein}g</div>
+            <div className="text-sm font-bold text-emerald-200">{formatNum(dailyTotals.protein)}g</div>
           </div>
-          <div className="flex-1 text-center p-2 bg-emerald-900/30 rounded-lg">
-            <div className="text-xs text-emerald-400/70 flex items-center justify-center gap-1">
-              <Wheat size={10} /> Carbs
+          <div className="flex-1 text-center py-3 px-3 bg-emerald-900/30 rounded-lg">
+            <div className="text-xs text-emerald-400/70 flex items-center justify-center gap-1 mb-1">
+              <Wheat size={11} /> Carbs
             </div>
-            <div className="text-sm font-semibold text-emerald-200">{dailyTotals.carbs}g</div>
+            <div className="text-sm font-bold text-emerald-200">{formatNum(dailyTotals.carbs)}g</div>
           </div>
-          <div className="flex-1 text-center p-2 bg-emerald-900/30 rounded-lg">
-            <div className="text-xs text-emerald-400/70 flex items-center justify-center gap-1">
-              <Droplets size={10} /> Fat
+          <div className="flex-1 text-center py-3 px-3 bg-emerald-900/30 rounded-lg">
+            <div className="text-xs text-emerald-400/70 flex items-center justify-center gap-1 mb-1">
+              <Droplets size={11} /> Fat
             </div>
-            <div className="text-sm font-semibold text-emerald-200">{dailyTotals.fat}g</div>
+            <div className="text-sm font-bold text-emerald-200">{formatNum(dailyTotals.fat)}g</div>
           </div>
         </div>
       </div>
@@ -220,7 +322,7 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
       <motion.div 
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mx-3 mt-3 p-3 bg-gradient-to-r from-rose-500/20 to-pink-500/20 rounded-xl border border-rose-500/30"
+        className="mx-4 mt-4 p-3.5 bg-gradient-to-r from-rose-500/20 to-pink-500/20 rounded-xl border border-rose-500/30"
       >
         <div className="flex items-start gap-2">
           <span className="text-2xl">🎀</span>
@@ -250,10 +352,24 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
         </div>
       </motion.div>
 
+      {/* Generate Meal Plan Button */}
+      <div className="mx-4 mt-3">
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={generateMealPlan}
+          className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600/50 to-teal-600/50 hover:from-emerald-600/70 hover:to-teal-600/70 text-emerald-100 rounded-xl transition-all flex items-center justify-center gap-2 border border-emerald-500/30"
+        >
+          <ListPlus size={18} />
+          <span className="font-medium text-sm">Generate Healthy Meal Plan</span>
+          <Sparkles size={14} className="text-yellow-400" />
+        </motion.button>
+      </div>
+
       {/* Today's Food Log */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-emerald-300 flex items-center gap-1">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-thin">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-medium text-emerald-300 flex items-center gap-1.5">
             <Clock size={14} /> Food Log
           </span>
           <motion.button
@@ -267,26 +383,41 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
         </div>
 
         {todaysFoods.length === 0 ? (
-          <div className="text-center py-8 text-emerald-400/60">
-            <p className="text-3xl mb-2">🍽️</p>
-            <p className="text-sm">No food logged yet</p>
-            <p className="text-xs mt-1">Tap + to add your meals!</p>
+          <div className="text-center py-10 text-emerald-400/60">
+            <p className="text-4xl mb-3">🍽️</p>
+            <p className="text-sm font-medium">No food logged yet</p>
+            <p className="text-xs mt-1.5 text-emerald-500/50">Tap + to add your meals!</p>
           </div>
         ) : (
           <AnimatePresence>
             {todaysFoods.map((food) => (
               <motion.div
                 key={food.logId}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, x: -20, scale: 0.9 }}
+                animate={{ 
+                  opacity: 1, 
+                  x: 0, 
+                  scale: 1,
+                  boxShadow: recentlyAdded.includes(food.logId) 
+                    ? '0 0 20px rgba(52, 211, 153, 0.5)' 
+                    : 'none'
+                }}
                 exit={{ opacity: 0, x: 20 }}
-                className={`flex items-center gap-3 p-2 rounded-xl ${
-                  food.healthy 
-                    ? 'bg-emerald-900/30 border border-emerald-500/20' 
-                    : 'bg-amber-900/30 border border-amber-500/20'
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                className={`relative flex items-center gap-3 p-2.5 rounded-xl transition-all ${
+                  recentlyAdded.includes(food.logId)
+                    ? 'bg-emerald-700/50 border-2 border-emerald-400/60 ring-2 ring-emerald-400/30'
+                    : food.healthy 
+                      ? 'bg-emerald-900/30 border border-emerald-500/20' 
+                      : 'bg-amber-900/30 border border-amber-500/20'
                 }`}
               >
                 <span className="text-2xl">{food.emoji}</span>
+                {recentlyAdded.includes(food.logId) && (
+                  <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">
+                    ✨ Added!
+                  </span>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-emerald-100 truncate">{food.name}</span>
@@ -324,13 +455,13 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
       </div>
 
       {/* Quick Stats Footer */}
-      <div className="px-3 py-2 bg-emerald-950/50 border-t border-emerald-500/20">
+      <div className="px-5 py-3 bg-emerald-950/50 border-t border-emerald-500/20">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-emerald-400/70">
+          <span className="text-emerald-400/70 font-medium">
             {todaysFoods.length} items logged
           </span>
-          <div className="flex items-center gap-1 text-emerald-300">
-            <TrendingUp size={12} />
+          <div className="flex items-center gap-1.5 text-emerald-300 font-medium">
+            <TrendingUp size={13} />
             <span>{Math.round((healthyCount / Math.max(todaysFoods.length, 1)) * 100)}% healthy</span>
           </div>
         </div>
@@ -417,7 +548,7 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
                         {!food.healthy && <span className="text-xs text-amber-400">⚠</span>}
                       </div>
                       <div className="text-xs text-emerald-400/70">
-                        {food.calories} kcal • P:{food.protein}g • C:{food.carbs}g • F:{food.fat}g
+                        {formatNum(food.calories)} kcal • P:{formatNum(food.protein)}g • C:{formatNum(food.carbs)}g • F:{formatNum(food.fat)}g
                       </div>
                     </div>
                     <ChevronRight size={16} className="text-emerald-400/50" />
@@ -428,9 +559,156 @@ const FoodPanel = ({ onFoodLog, onAskYuki, dailyGoal = 2000 }) => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Meal Plan Modal */}
+      <AnimatePresence>
+        {showMealPlan && mealPlan && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowMealPlan(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm bg-gradient-to-b from-emerald-950 to-teal-950 rounded-2xl border border-emerald-500/30 overflow-hidden max-h-[90vh] flex flex-col"
+            >
+              {/* Modal Header */}
+              <div className="p-4 border-b border-emerald-500/20 bg-emerald-900/30">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-emerald-200 flex items-center gap-2">
+                    <Sparkles size={18} className="text-yellow-400" />
+                    Healthy Meal Plan
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={generateMealPlan}
+                      className="p-1.5 hover:bg-emerald-500/30 rounded-lg transition-colors"
+                      title="Regenerate"
+                    >
+                      <RefreshCw size={16} className="text-emerald-400" />
+                    </button>
+                    <button
+                      onClick={() => setShowMealPlan(false)}
+                      className="p-1.5 hover:bg-emerald-500/30 rounded-lg transition-colors"
+                    >
+                      <X size={18} className="text-emerald-400" />
+                    </button>
+                  </div>
+                </div>
+                {/* Totals Summary */}
+                <div className="mt-3 p-2 bg-emerald-900/40 rounded-lg">
+                  <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                    <div>
+                      <div className="text-emerald-400/70">Calories</div>
+                      <div className="font-semibold text-emerald-200">{formatNum(mealPlan.totals.calories)}</div>
+                    </div>
+                    <div>
+                      <div className="text-emerald-400/70">Protein</div>
+                      <div className="font-semibold text-emerald-200">{formatNum(mealPlan.totals.protein)}g</div>
+                    </div>
+                    <div>
+                      <div className="text-emerald-400/70">Carbs</div>
+                      <div className="font-semibold text-emerald-200">{formatNum(mealPlan.totals.carbs)}g</div>
+                    </div>
+                    <div>
+                      <div className="text-emerald-400/70">Fat</div>
+                      <div className="font-semibold text-emerald-200">{formatNum(mealPlan.totals.fat)}g</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Meal Sections */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-thin">
+                {/* Breakfast */}
+                <div className="p-3 bg-amber-900/20 rounded-xl border border-amber-500/20">
+                  <h4 className="text-sm font-medium text-amber-300 mb-2 flex items-center gap-2">
+                    🌅 Breakfast
+                  </h4>
+                  <div className="space-y-1">
+                    {mealPlan.breakfast.map((food) => (
+                      <div key={food.id} className="flex items-center gap-2 text-xs text-emerald-200">
+                        <span>{food.emoji}</span>
+                        <span className="flex-1">{food.name}</span>
+                        <span className="text-emerald-400/70">{food.calories} kcal</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Lunch */}
+                <div className="p-3 bg-orange-900/20 rounded-xl border border-orange-500/20">
+                  <h4 className="text-sm font-medium text-orange-300 mb-2 flex items-center gap-2">
+                    ☀️ Lunch
+                  </h4>
+                  <div className="space-y-1">
+                    {mealPlan.lunch.map((food) => (
+                      <div key={food.id} className="flex items-center gap-2 text-xs text-emerald-200">
+                        <span>{food.emoji}</span>
+                        <span className="flex-1">{food.name}</span>
+                        <span className="text-emerald-400/70">{food.calories} kcal</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dinner */}
+                <div className="p-3 bg-indigo-900/20 rounded-xl border border-indigo-500/20">
+                  <h4 className="text-sm font-medium text-indigo-300 mb-2 flex items-center gap-2">
+                    🌙 Dinner
+                  </h4>
+                  <div className="space-y-1">
+                    {mealPlan.dinner.map((food) => (
+                      <div key={food.id} className="flex items-center gap-2 text-xs text-emerald-200">
+                        <span>{food.emoji}</span>
+                        <span className="flex-1">{food.name}</span>
+                        <span className="text-emerald-400/70">{food.calories} kcal</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Snacks */}
+                <div className="p-3 bg-pink-900/20 rounded-xl border border-pink-500/20">
+                  <h4 className="text-sm font-medium text-pink-300 mb-2 flex items-center gap-2">
+                    🍎 Snacks
+                  </h4>
+                  <div className="space-y-1">
+                    {mealPlan.snacks.map((food) => (
+                      <div key={food.id} className="flex items-center gap-2 text-xs text-emerald-200">
+                        <span>{food.emoji}</span>
+                        <span className="flex-1">{food.name}</span>
+                        <span className="text-emerald-400/70">{food.calories} kcal</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="p-3 border-t border-emerald-500/20 bg-emerald-950/50">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={addMealPlan}
+                  className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                  <Plus size={18} />
+                  Add All to Today's Log
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-};
+});
 
 export default FoodPanel;
 

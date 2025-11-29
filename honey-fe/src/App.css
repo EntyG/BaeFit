@@ -209,6 +209,21 @@ html, body, #root {
   transform: scale(1.05);
 }
 
+/* Language Button */
+.language-btn {
+  position: relative;
+  width: auto;
+  padding: 0 12px;
+  gap: 6px;
+}
+
+.language-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--rose-accent);
+  text-transform: uppercase;
+}
+
 /* ═══════════════════════════════════════════════════════════
    PANELS STYLING
    ═══════════════════════════════════════════════════════════ */
@@ -300,7 +315,7 @@ html, body, #root {
   border: 1px solid rgba(255, 107, 157, 0.25);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   z-index: 15;
-}
+  }
 
 .mood-emoji {
   font-size: 22px;
@@ -487,11 +502,11 @@ button {
 /* Input base */
 input, textarea {
   font-family: inherit;
-}
-
+  }
+  
 input::placeholder, textarea::placeholder {
   font-family: inherit;
-}
+  }
 /* Live2D canvas */
 canvas {
   display: block;
